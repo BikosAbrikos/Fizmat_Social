@@ -3,7 +3,9 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import settings
 
-engine = create_engine(settings.DATABASE_URL)
+# Strip query parameters from URL and pass SSL via connect_args
+_db_url = settings.DATABASE_URL.split("?")[0]
+engine = create_engine(_db_url, connect_args={"sslmode": "require"})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
