@@ -1,29 +1,37 @@
+import re
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, model_validator
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
-class RegisterRequest(BaseModel):
-    name: str
+class SendVerificationRequest(BaseModel):
     email: EmailStr
-    password: str
 
     @field_validator("email")
     @classmethod
     def email_must_be_fizmat(cls, v: str) -> str:
-        if not v.endswith("@fizmat.kz"):
+        if not v.lower().endswith("@fizmat.kz"):
             raise ValueError("Only @fizmat.kz emails are allowed")
         return v.lower()
 
-    @field_validator("password")
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    code: str
+    name: str
+    username: str
+    password: str
+    confirm_password: str
+
+    @field_validator("email")
     @classmethod
-    def password_min_length(cls, v: str) -> str:
-        if len(v) < 6:
-            raise ValueError("Password must be at least 6 characters")
-        return v
+    def email_must_be_fizmat(cls, v: str) -> str:
+        if not v.lower().endswith("@fizmat.kz"):
+            raise ValueError("Only @fizmat.kz emails are allowed")
+        return v.lower()
 
     @field_validator("name")
     @classmethod
@@ -32,6 +40,31 @@ class RegisterRequest(BaseModel):
         if not v:
             raise ValueError("Name cannot be empty")
         return v
+
+    @field_validator("username")
+    @classmethod
+    def username_valid(cls, v: str) -> str:
+        v = v.strip().lower()
+        if len(v) < 3:
+            raise ValueError("Username must be at least 3 characters")
+        if len(v) > 30:
+            raise ValueError("Username must be at most 30 characters")
+        if not re.match(r'^[a-z0-9._]+$', v):
+            raise ValueError("Username can only contain letters, numbers, dots, and underscores")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 6:
+            raise ValueError("Password must be at least 6 characters")
+        return v
+
+    @model_validator(mode="after")
+    def passwords_match(self) -> "RegisterRequest":
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self
 
 
 class LoginRequest(BaseModel):
@@ -49,6 +82,7 @@ class Token(BaseModel):
 class UserOut(BaseModel):
     id: int
     name: str
+    username: Optional[str]
     email: str
     avatar_url: Optional[str]
     created_at: datetime
@@ -58,6 +92,7 @@ class UserOut(BaseModel):
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
+    username: Optional[str] = None
     avatar_url: Optional[str] = None
 
     @field_validator("name")
@@ -67,6 +102,19 @@ class UserUpdate(BaseModel):
             v = v.strip()
             if not v:
                 raise ValueError("Name cannot be empty")
+        return v
+
+    @field_validator("username")
+    @classmethod
+    def username_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip().lower()
+            if len(v) < 3:
+                raise ValueError("Username must be at least 3 characters")
+            if len(v) > 30:
+                raise ValueError("Username must be at most 30 characters")
+            if not re.match(r'^[a-z0-9._]+$', v):
+                raise ValueError("Username can only contain letters, numbers, dots, and underscores")
         return v
 
 

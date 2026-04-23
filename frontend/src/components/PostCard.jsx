@@ -8,6 +8,7 @@ const s = {
   avatar: { width: 40, height: 40, borderRadius: "50%", objectFit: "cover", background: "#e4e6eb" },
   avatarPlaceholder: { width: 40, height: 40, borderRadius: "50%", background: "#1877f2", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16 },
   name: { fontWeight: 600, fontSize: 15 },
+  username: { fontSize: 12, color: "#65676b" },
   date: { fontSize: 12, color: "#65676b" },
   content: { fontSize: 15, lineHeight: 1.5, marginBottom: 12 },
   actions: { display: "flex", gap: 12, alignItems: "center" },
@@ -48,6 +49,7 @@ export default function PostCard({ post, onUpdate, onDelete }) {
         }
         <div>
           <div style={s.name}>{post.author.name}</div>
+          {post.author.username && <div style={s.username}>@{post.author.username}</div>}
           <div style={s.date}>{dateStr}</div>
         </div>
       </div>

@@ -20,6 +20,11 @@ def update_me(body: UserUpdate, db: Session = Depends(get_db), current_user: Use
         current_user.name = body.name
     if body.avatar_url is not None:
         current_user.avatar_url = body.avatar_url
+    if body.username is not None:
+        taken = db.query(User).filter(User.username == body.username, User.id != current_user.id).first()
+        if taken:
+            raise HTTPException(status_code=400, detail="Username already taken")
+        current_user.username = body.username
     db.commit()
     db.refresh(current_user)
     return current_user

@@ -21,6 +21,7 @@ const s = {
 export default function Profile() {
   const { user, setUser } = useAuth();
   const [name, setName] = useState(user?.name || "");
+  const [username, setUsername] = useState(user?.username || "");
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || "");
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
@@ -32,7 +33,7 @@ export default function Profile() {
     setError("");
     setSaving(true);
     try {
-      const { data } = await api.put("/api/users/me", { name, avatar_url: avatarUrl || null });
+      const { data } = await api.put("/api/users/me", { name, username: username || null, avatar_url: avatarUrl || null });
       setUser(data);
       setMsg("Profile updated!");
     } catch (err) {
@@ -63,8 +64,12 @@ export default function Profile() {
             <div style={s.staticVal}>{user?.email}</div>
           </div>
           <div style={s.field}>
-            <label style={s.label}>Name</label>
+            <label style={s.label}>Full Name</label>
             <input style={s.input} type="text" value={name} onChange={e => setName(e.target.value)} required />
+          </div>
+          <div style={s.field}>
+            <label style={s.label}>Username</label>
+            <input style={s.input} type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="e.g. arsen.yessentayev" />
           </div>
           <div style={s.field}>
             <label style={s.label}>Avatar URL (optional)</label>
