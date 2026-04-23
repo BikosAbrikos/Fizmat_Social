@@ -1,4 +1,4 @@
-import random
+import secrets
 import smtplib
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
@@ -40,7 +40,7 @@ def send_verification(body: SendVerificationRequest, db: Session = Depends(get_d
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    code = str(random.randint(100000, 999999))
+    code = f"{secrets.randbelow(1000000):06d}"
 
     # Replace any existing pending code for this email
     db.query(EmailVerification).filter(EmailVerification.email == body.email).delete()
