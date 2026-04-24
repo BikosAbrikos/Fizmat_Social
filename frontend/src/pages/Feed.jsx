@@ -32,19 +32,56 @@ export default function Feed() {
     api.get("/api/posts").then(({ data }) => setPosts(data));
   }, []);
 
-  const handleFileChange = (e) => {
+  const MAX_W = 1200;
+  const MAX_H = 630;
+
+  const checkDimensions = (f, type) =>
+    new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(f);
+      if (type === "image") {
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          if (img.naturalWidth > MAX_W || img.naturalHeight > MAX_H)
+            reject(`Image is too large (${img.naturalWidth}×${img.naturalHeight}px). Max allowed: ${MAX_W}×${MAX_H}px.`);
+          else resolve(url);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject("Could not read image."); };
+        img.src = url;
+      } else {
+        const vid = document.createElement("video");
+        vid.onloadedmetadata = () => {
+          URL.revokeObjectURL(url);
+          if (vid.videoWidth > MAX_W || vid.videoHeight > MAX_H)
+            reject(`Video is too large (${vid.videoWidth}×${vid.videoHeight}px). Max allowed: ${MAX_W}×${MAX_H}px.`);
+          else resolve(url);
+        };
+        vid.onerror = () => { URL.revokeObjectURL(url); reject("Could not read video."); };
+        vid.src = url;
+      }
+    });
+
+  const handleFileChange = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
     const isImage = f.type.startsWith("image/");
     const isVideo = f.type.startsWith("video/");
     if (!isImage && !isVideo) {
       setPostError("Only images and videos are allowed");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
-    setFile(f);
-    setFileType(isImage ? "image" : "video");
-    setFilePreview(URL.createObjectURL(f));
-    setPostError("");
+    const type = isImage ? "image" : "video";
+    try {
+      const previewUrl = await checkDimensions(f, type);
+      setFile(f);
+      setFileType(type);
+      setFilePreview(previewUrl);
+      setPostError("");
+    } catch (msg) {
+      setPostError(msg);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const removeFile = () => {
