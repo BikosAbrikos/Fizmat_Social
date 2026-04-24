@@ -51,6 +51,7 @@ async def upload_media(
             content=data,
             headers={
                 "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
+                "apikey": settings.SUPABASE_SERVICE_KEY,
                 "Content-Type": content_type,
             },
             timeout=60,
