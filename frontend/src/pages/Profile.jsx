@@ -23,6 +23,10 @@ export default function Profile() {
   const [name, setName] = useState(user?.name || "");
   const [username, setUsername] = useState(user?.username || "");
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url || "");
+  const [age, setAge] = useState(user?.age ?? "");
+  const [grade, setGrade] = useState(user?.grade || "");
+  const [bio, setBio] = useState(user?.bio || "");
+  const [futureMajor, setFutureMajor] = useState(user?.future_major || "");
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -33,7 +37,15 @@ export default function Profile() {
     setError("");
     setSaving(true);
     try {
-      const { data } = await api.put("/api/users/me", { name, username: username || null, avatar_url: avatarUrl || null });
+      const { data } = await api.put("/api/users/me", {
+        name,
+        username: username || null,
+        avatar_url: avatarUrl || null,
+        age: age !== "" ? Number(age) : null,
+        grade: grade || null,
+        bio: bio || null,
+        future_major: futureMajor || null,
+      });
       setUser(data);
       setMsg("Profile updated!");
     } catch (err) {
@@ -74,6 +86,29 @@ export default function Profile() {
           <div style={s.field}>
             <label style={s.label}>Avatar URL (optional)</label>
             <input style={s.input} type="url" value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} placeholder="https://example.com/avatar.jpg" />
+          </div>
+          <div style={s.field}>
+            <label style={s.label}>Age (optional)</label>
+            <input style={s.input} type="number" min={10} max={99} value={age} onChange={e => setAge(e.target.value)} placeholder="e.g. 17" />
+          </div>
+          <div style={s.field}>
+            <label style={s.label}>Grade (optional)</label>
+            <input style={s.input} type="text" value={grade} onChange={e => setGrade(e.target.value)} placeholder="e.g. 11H" maxLength={10} />
+          </div>
+          <div style={s.field}>
+            <label style={s.label}>About me (optional, max 150 characters)</label>
+            <textarea
+              style={{ ...s.input, resize: "vertical", minHeight: 72 }}
+              value={bio}
+              onChange={e => setBio(e.target.value)}
+              placeholder="A few words about yourself..."
+              maxLength={150}
+            />
+            <div style={{ fontSize: 12, color: "#65676b", marginTop: 3 }}>{bio.length}/150</div>
+          </div>
+          <div style={s.field}>
+            <label style={s.label}>Future major (optional)</label>
+            <input style={s.input} type="text" value={futureMajor} onChange={e => setFutureMajor(e.target.value)} placeholder="e.g. Engineer" maxLength={100} />
           </div>
           <button style={s.btn} type="submit" disabled={saving}>
             {saving ? "Saving..." : "Save Changes"}

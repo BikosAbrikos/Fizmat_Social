@@ -25,6 +25,14 @@ def update_me(body: UserUpdate, db: Session = Depends(get_db), current_user: Use
         if taken:
             raise HTTPException(status_code=400, detail="Username already taken")
         current_user.username = body.username
+    if body.age is not None:
+        current_user.age = body.age
+    if body.grade is not None:
+        current_user.grade = body.grade
+    if body.bio is not None:
+        current_user.bio = body.bio
+    if body.future_major is not None:
+        current_user.future_major = body.future_major
     db.commit()
     db.refresh(current_user)
     return current_user

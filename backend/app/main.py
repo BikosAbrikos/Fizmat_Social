@@ -19,6 +19,10 @@ async def lifespan(app: FastAPI):
         conn.execute(text(
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_username ON users (username)"
         ))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS age INTEGER"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS grade VARCHAR(10)"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(150)"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS future_major VARCHAR(100)"))
         conn.commit()
     yield
 

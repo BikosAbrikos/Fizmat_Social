@@ -85,6 +85,10 @@ class UserOut(BaseModel):
     username: Optional[str]
     email: str
     avatar_url: Optional[str]
+    age: Optional[int]
+    grade: Optional[str]
+    bio: Optional[str]
+    future_major: Optional[str]
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -94,6 +98,10 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     username: Optional[str] = None
     avatar_url: Optional[str] = None
+    age: Optional[int] = None
+    grade: Optional[str] = None
+    bio: Optional[str] = None
+    future_major: Optional[str] = None
 
     @field_validator("name")
     @classmethod

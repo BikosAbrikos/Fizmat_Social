@@ -15,6 +15,10 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     avatar_url = Column(String(500), nullable=True)
+    age = Column(Integer, nullable=True)
+    grade = Column(String(10), nullable=True)
+    bio = Column(String(150), nullable=True)
+    future_major = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     posts = relationship("Post", back_populates="author", cascade="all, delete-orphan")
