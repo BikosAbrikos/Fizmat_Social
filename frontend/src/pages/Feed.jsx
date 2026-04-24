@@ -32,8 +32,8 @@ export default function Feed() {
     api.get("/api/posts").then(({ data }) => setPosts(data));
   }, []);
 
-  const MAX_W = 1200;
-  const MAX_H = 630;
+  const MAX_W = 2000;
+  const MAX_H = 2000;
 
   const checkDimensions = (f, type) =>
     new Promise((resolve, reject) => {
