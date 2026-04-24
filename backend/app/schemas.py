@@ -146,6 +146,8 @@ class FriendStatusOut(BaseModel):
 
 class PostCreate(BaseModel):
     content: str
+    media_url: Optional[str] = None
+    media_type: Optional[str] = None
 
     @field_validator("content")
     @classmethod
@@ -159,6 +161,8 @@ class PostCreate(BaseModel):
 class PostOut(BaseModel):
     id: int
     content: str
+    media_url: Optional[str]
+    media_type: Optional[str]
     created_at: datetime
     author: UserOut
     like_count: int

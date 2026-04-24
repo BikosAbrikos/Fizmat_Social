@@ -13,6 +13,7 @@ const s = {
   username: { fontSize: 12, color: "#65676b" },
   date: { fontSize: 12, color: "#65676b" },
   content: { fontSize: 15, lineHeight: 1.5, marginBottom: 12 },
+  media: { width: "100%", borderRadius: 8, marginBottom: 12, display: "block" },
   actions: { display: "flex", gap: 12, alignItems: "center" },
   likeBtn: { border: "none", background: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "4px 8px", borderRadius: 6 },
   deleteBtn: { border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "#e41749", marginLeft: "auto" },
@@ -58,7 +59,13 @@ export default function PostCard({ post, onUpdate, onDelete }) {
         </div>
         <div style={{ ...s.date, marginLeft: "auto" }}>{dateStr}</div>
       </div>
-      <p style={s.content}>{post.content}</p>
+      {post.content.trim() && <p style={s.content}>{post.content}</p>}
+      {post.media_url && post.media_type === "image" && (
+        <img src={post.media_url} alt="" style={s.media} />
+      )}
+      {post.media_url && post.media_type === "video" && (
+        <video src={post.media_url} style={s.media} controls />
+      )}
       <div style={s.actions}>
         <button
           style={{ ...s.likeBtn, color: post.liked_by_me ? "#1877f2" : "#65676b" }}

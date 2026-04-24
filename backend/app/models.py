@@ -32,6 +32,8 @@ class Post(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     content = Column(Text, nullable=False)
+    media_url = Column(String(1000), nullable=True)
+    media_type = Column(String(10), nullable=True)  # "image" or "video"
     created_at = Column(DateTime, default=datetime.utcnow)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
