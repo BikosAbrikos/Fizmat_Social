@@ -41,20 +41,24 @@ export default function Feed() {
       if (type === "image") {
         const img = new Image();
         img.onload = () => {
-          URL.revokeObjectURL(url);
-          if (img.naturalWidth > MAX_W || img.naturalHeight > MAX_H)
+          if (img.naturalWidth > MAX_W || img.naturalHeight > MAX_H) {
+            URL.revokeObjectURL(url);
             reject(`Image is too large (${img.naturalWidth}×${img.naturalHeight}px). Max allowed: ${MAX_W}×${MAX_H}px.`);
-          else resolve(url);
+          } else {
+            resolve(url); // keep url alive for preview
+          }
         };
         img.onerror = () => { URL.revokeObjectURL(url); reject("Could not read image."); };
         img.src = url;
       } else {
         const vid = document.createElement("video");
         vid.onloadedmetadata = () => {
-          URL.revokeObjectURL(url);
-          if (vid.videoWidth > MAX_W || vid.videoHeight > MAX_H)
+          if (vid.videoWidth > MAX_W || vid.videoHeight > MAX_H) {
+            URL.revokeObjectURL(url);
             reject(`Video is too large (${vid.videoWidth}×${vid.videoHeight}px). Max allowed: ${MAX_W}×${MAX_H}px.`);
-          else resolve(url);
+          } else {
+            resolve(url); // keep url alive for preview
+          }
         };
         vid.onerror = () => { URL.revokeObjectURL(url); reject("Could not read video."); };
         vid.src = url;

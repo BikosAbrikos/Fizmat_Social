@@ -13,7 +13,7 @@ const s = {
   username: { fontSize: 12, color: "#65676b" },
   date: { fontSize: 12, color: "#65676b" },
   content: { fontSize: 15, lineHeight: 1.5, marginBottom: 12 },
-  media: { width: "100%", borderRadius: 8, marginBottom: 12, display: "block" },
+  media: { width: "100%", maxHeight: 630, objectFit: "contain", borderRadius: 8, marginBottom: 12, display: "block", background: "#f0f2f5" },
   actions: { display: "flex", gap: 12, alignItems: "center" },
   likeBtn: { border: "none", background: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "4px 8px", borderRadius: 6 },
   deleteBtn: { border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "#e41749", marginLeft: "auto" },
