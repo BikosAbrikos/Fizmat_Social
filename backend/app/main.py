@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.database import Base, engine
-from app.routers import auth, friends, media, posts, users
+from app.routers import auth, chats, friends, media, posts, users
 
 
 @asynccontextmanager
@@ -23,6 +23,18 @@ async def lifespan(app: FastAPI):
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS grade VARCHAR(10)"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(150)"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS future_major VARCHAR(100)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS direct_messages (
+                id SERIAL PRIMARY KEY,
+                sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_dm_sender_receiver ON direct_messages (sender_id, receiver_id)"
+        ))
         conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_url VARCHAR(1000)"))
         conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_type VARCHAR(10)"))
         conn.execute(text("""
@@ -53,6 +65,7 @@ app.include_router(users.router)
 app.include_router(posts.router)
 app.include_router(friends.router)
 app.include_router(media.router)
+app.include_router(chats.router)
 
 
 @app.get("/")

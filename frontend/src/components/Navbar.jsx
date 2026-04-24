@@ -37,6 +37,7 @@ export default function Navbar() {
       {user && (
         <div style={s.links}>
           <Link to="/" style={s.link}>Feed</Link>
+          <Link to="/chats" style={s.link}>Chats</Link>
           <div style={s.notifWrap}>
             <Link to="/notifications" style={s.link}>Notifications</Link>
             {notifCount > 0 && <span style={s.badge}>{notifCount}</span>}

@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import PrivateRoute from "./components/PrivateRoute";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import Chats from "./pages/Chats";
 import Feed from "./pages/Feed";
 import Login from "./pages/Login";
 import Notifications from "./pages/Notifications";
@@ -26,6 +27,7 @@ function AppRoutes() {
         <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
         <Route path="/users/:id" element={<PrivateRoute><UserProfile /></PrivateRoute>} />
         <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
+        <Route path="/chats" element={<PrivateRoute><Chats /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

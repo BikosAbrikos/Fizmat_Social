@@ -38,6 +38,17 @@ def update_me(body: UserUpdate, db: Session = Depends(get_db), current_user: Use
     return current_user
 
 
+@router.get("/search", response_model=list[UserOut])
+def search_users(q: str = "", db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if len(q.strip()) < 2:
+        return []
+    term = q.strip().lstrip("@")
+    return db.query(User).filter(
+        User.username.ilike(f"%{term}%"),
+        User.id != current_user.id,
+    ).limit(10).all()
+
+
 @router.get("/{user_id}", response_model=UserOut)
 def get_user(user_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     user = db.query(User).filter(User.id == user_id).first()
