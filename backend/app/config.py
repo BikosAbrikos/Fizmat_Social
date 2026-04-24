@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = ""
 
+
     class Config:
         env_file = ".env"
 

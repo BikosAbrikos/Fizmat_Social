@@ -1,10 +1,7 @@
 import secrets
 import smtplib
-import socket
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
-
-import dns.resolver
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -16,27 +13,6 @@ from app.models import EmailVerification, User
 from app.schemas import LoginRequest, RegisterRequest, SendVerificationRequest, Token, UserOut
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
-
-def _email_mailbox_exists(email: str) -> bool:
-    domain = email.split("@")[1]
-    try:
-        records = dns.resolver.resolve(domain, "MX")
-        mx_host = str(sorted(records, key=lambda r: r.preference)[0].exchange).rstrip(".")
-    except Exception:
-        return False
-
-    try:
-        with smtplib.SMTP(timeout=10) as smtp:
-            smtp.connect(mx_host, 25)
-            smtp.helo(socket.getfqdn())
-            smtp.mail("noreply@fizmat.kz")
-            code, _ = smtp.rcpt(email)
-            smtp.quit()
-            return code == 250
-    except Exception:
-        # If SMTP probe fails (blocked, timeout), assume email may exist
-        return True
 
 
 def _send_otp_email(to_email: str, code: str) -> None:
@@ -62,10 +38,7 @@ def _send_otp_email(to_email: str, code: str) -> None:
 @router.post("/send-verification", status_code=status.HTTP_200_OK)
 def send_verification(body: SendVerificationRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == body.email).first():
-        raise HTTPException(status_code=400, detail="Account already registered")
-
-    if not _email_mailbox_exists(body.email):
-        raise HTTPException(status_code=400, detail="This email does not exist, you can't register")
+        raise HTTPException(status_code=400, detail="Email already registered")
 
     code = f"{secrets.randbelow(1000000):06d}"
 

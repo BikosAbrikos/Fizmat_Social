@@ -142,6 +142,7 @@ export default function Register() {
       <div style={s.box}>
         <h1 style={s.title}>Create Account</h1>
         <p style={s.step}>Step 2 of 2 — A 6-digit code was sent to {email}</p>
+          <p style={{ ...s.hint, textAlign: "center", marginBottom: 16 }}>Check your email — is it correct?</p>
         <form onSubmit={handleRegister}>
           {submitError && <div style={s.error}>{submitError}</div>}
 
