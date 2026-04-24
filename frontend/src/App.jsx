@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Notifications from "./pages/Notifications";
 import Profile from "./pages/Profile";
 import Register from "./pages/Register";
+import Submit from "./pages/Submit";
 import UserProfile from "./pages/UserProfile";
 
 function PublicRoute({ children }) {
@@ -28,6 +29,7 @@ function AppRoutes() {
         <Route path="/users/:id" element={<PrivateRoute><UserProfile /></PrivateRoute>} />
         <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
         <Route path="/chats" element={<PrivateRoute><Chats /></PrivateRoute>} />
+        <Route path="/submit" element={<PrivateRoute><Submit /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

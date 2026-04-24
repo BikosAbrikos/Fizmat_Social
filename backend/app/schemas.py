@@ -179,22 +179,28 @@ class UnreadChatOut(BaseModel):
 # ── Post ──────────────────────────────────────────────────────────────────────
 
 class PostCreate(BaseModel):
-    content: str
+    title: str
+    content: Optional[str] = None
     media_url: Optional[str] = None
     media_type: Optional[str] = None
+    link_url: Optional[str] = None
 
-    @field_validator("content")
+    @field_validator("title")
     @classmethod
-    def content_not_empty(cls, v: str) -> str:
+    def title_not_empty(cls, v: str) -> str:
         v = v.strip()
         if not v:
-            raise ValueError("Post content cannot be empty")
+            raise ValueError("Title cannot be empty")
+        if len(v) > 300:
+            raise ValueError("Title must be at most 300 characters")
         return v
 
 
 class PostOut(BaseModel):
     id: int
-    content: str
+    title: Optional[str]
+    content: Optional[str]
+    link_url: Optional[str]
     media_url: Optional[str]
     media_type: Optional[str]
     created_at: datetime

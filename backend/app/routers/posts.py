@@ -15,7 +15,9 @@ def _serialize_post(post: Post, current_user_id: int) -> PostOut:
     liked_by_me = any(like.user_id == current_user_id for like in post.likes)
     return PostOut(
         id=post.id,
+        title=post.title,
         content=post.content,
+        link_url=post.link_url,
         media_url=post.media_url,
         media_type=post.media_type,
         created_at=post.created_at,
@@ -44,7 +46,14 @@ def get_feed(
 
 @router.post("", response_model=PostOut, status_code=status.HTTP_201_CREATED)
 def create_post(body: PostCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    post = Post(content=body.content, media_url=body.media_url, media_type=body.media_type, author_id=current_user.id)
+    post = Post(
+        title=body.title,
+        content=body.content or None,
+        link_url=body.link_url or None,
+        media_url=body.media_url or None,
+        media_type=body.media_type or None,
+        author_id=current_user.id,
+    )
     db.add(post)
     db.commit()
     db.refresh(post)

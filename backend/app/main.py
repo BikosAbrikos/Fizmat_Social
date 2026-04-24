@@ -38,6 +38,8 @@ async def lifespan(app: FastAPI):
         conn.execute(text(
             "ALTER TABLE direct_messages ADD COLUMN IF NOT EXISTS read BOOLEAN NOT NULL DEFAULT FALSE"
         ))
+        conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS title VARCHAR(300)"))
+        conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS link_url VARCHAR(500)"))
         conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_url VARCHAR(1000)"))
         conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_type VARCHAR(10)"))
         conn.execute(text("""

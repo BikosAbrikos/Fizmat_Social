@@ -31,7 +31,9 @@ class Post(Base):
     __tablename__ = "posts"
 
     id = Column(Integer, primary_key=True, index=True)
-    content = Column(Text, nullable=False)
+    title = Column(String(300), nullable=True)
+    content = Column(Text, nullable=True)
+    link_url = Column(String(500), nullable=True)
     media_url = Column(String(1000), nullable=True)
     media_type = Column(String(10), nullable=True)  # "image" or "video"
     created_at = Column(DateTime, default=datetime.utcnow)

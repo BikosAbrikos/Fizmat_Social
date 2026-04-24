@@ -12,7 +12,14 @@ const s = {
   name: { fontWeight: 600, fontSize: 15 },
   username: { fontSize: 12, color: "#65676b" },
   date: { fontSize: 12, color: "#65676b" },
-  content: { fontSize: 15, lineHeight: 1.5, marginBottom: 12 },
+  title: { fontSize: 18, fontWeight: 700, lineHeight: 1.35, marginBottom: 8, color: "#1c1e21" },
+  content: { fontSize: 15, lineHeight: 1.5, marginBottom: 12, color: "#1c1e21" },
+  linkBox: {
+    display: "block", marginBottom: 12, padding: "10px 14px",
+    background: "#f0f2f5", borderRadius: 6, border: "1px solid #e4e6eb",
+    color: "#1877f2", fontSize: 14, textDecoration: "none",
+    wordBreak: "break-all", lineHeight: 1.4,
+  },
   media: { width: "100%", maxHeight: 2000, objectFit: "contain", borderRadius: 8, marginBottom: 12, display: "block", background: "#f0f2f5" },
   actions: { display: "flex", gap: 12, alignItems: "center" },
   likeBtn: { border: "none", background: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "4px 8px", borderRadius: 6 },
@@ -59,13 +66,26 @@ export default function PostCard({ post, onUpdate, onDelete }) {
         </div>
         <div style={{ ...s.date, marginLeft: "auto" }}>{dateStr}</div>
       </div>
-      {post.content.trim() && <p style={s.content}>{post.content}</p>}
+
+      {post.title && <div style={s.title}>{post.title}</div>}
+
+      {post.content && post.content.trim() && (
+        <p style={s.content}>{post.content}</p>
+      )}
+
+      {post.link_url && (
+        <a href={post.link_url} target="_blank" rel="noopener noreferrer" style={s.linkBox}>
+          🔗 {post.link_url}
+        </a>
+      )}
+
       {post.media_url && post.media_type === "image" && (
         <img src={post.media_url} alt="" style={s.media} />
       )}
       {post.media_url && post.media_type === "video" && (
         <video src={post.media_url} style={s.media} controls />
       )}
+
       <div style={s.actions}>
         <button
           style={{ ...s.likeBtn, color: post.liked_by_me ? "#1877f2" : "#65676b" }}
