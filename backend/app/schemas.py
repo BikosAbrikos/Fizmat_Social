@@ -161,7 +161,17 @@ class MessageOut(BaseModel):
     sender_id: int
     receiver_id: int
     content: str
+    read: bool
     created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class UnreadChatOut(BaseModel):
+    sender: "UserOut"
+    count: int
+    last_message: str
+    last_at: datetime
 
     model_config = {"from_attributes": True}
 

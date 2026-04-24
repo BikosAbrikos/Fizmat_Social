@@ -35,6 +35,9 @@ async def lifespan(app: FastAPI):
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS ix_dm_sender_receiver ON direct_messages (sender_id, receiver_id)"
         ))
+        conn.execute(text(
+            "ALTER TABLE direct_messages ADD COLUMN IF NOT EXISTS read BOOLEAN NOT NULL DEFAULT FALSE"
+        ))
         conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_url VARCHAR(1000)"))
         conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_type VARCHAR(10)"))
         conn.execute(text("""

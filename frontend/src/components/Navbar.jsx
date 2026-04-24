@@ -21,9 +21,12 @@ export default function Navbar() {
 
   useEffect(() => {
     if (!user) return;
-    api.get("/api/friends/requests/incoming/count")
-      .then(({ data }) => setNotifCount(data.count))
-      .catch(() => {});
+    Promise.all([
+      api.get("/api/friends/requests/incoming/count").catch(() => ({ data: { count: 0 } })),
+      api.get("/api/chats/unread/count").catch(() => ({ data: { count: 0 } })),
+    ]).then(([req, msg]) => {
+      setNotifCount(req.data.count + msg.data.count);
+    });
   }, [user, location.pathname]);
 
   const handleLogout = () => {

@@ -145,7 +145,14 @@ export default function Chats() {
 
   const isFriend = (userId) => friends.some(f => f.id === userId);
 
-  const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const fmtTime = (iso) => {
+    const d = new Date(iso);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (isToday) return time;
+    return d.toLocaleDateString([], { day: "numeric", month: "short" }) + ", " + time;
+  };
 
   const Avatar = ({ user, size = 38 }) => user.avatar_url
     ? <img src={user.avatar_url} alt="" style={{ ...s.av, width: size, height: size }} />
@@ -225,12 +232,20 @@ export default function Chats() {
           </div>
 
           <div style={s.messages}>
-            {messages.map(msg => {
+            {messages.map((msg, idx) => {
               const mine = msg.sender_id === me?.id;
+              // Show "Seen" only under the last message I sent that has been read
+              const isLastReadSent = mine && msg.read && (
+                idx === messages.length - 1 ||
+                !messages.slice(idx + 1).some(m => m.sender_id === me?.id && m.read)
+              );
               return (
                 <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start" }}>
                   <div style={s.bubble(mine)}>{msg.content}</div>
-                  <div style={s.bubbleTime(mine)}>{fmtTime(msg.created_at)}</div>
+                  <div style={s.bubbleTime(mine)}>
+                    {fmtTime(msg.created_at)}
+                    {isLastReadSent && <span style={{ marginLeft: 6, color: "#1877f2" }}>· Seen ✓</span>}
+                  </div>
                 </div>
               );
             })}
