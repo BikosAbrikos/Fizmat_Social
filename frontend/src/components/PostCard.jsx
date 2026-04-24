@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
@@ -7,6 +8,7 @@ const s = {
   header: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 },
   avatar: { width: 40, height: 40, borderRadius: "50%", objectFit: "cover", background: "#e4e6eb" },
   avatarPlaceholder: { width: 40, height: 40, borderRadius: "50%", background: "#1877f2", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16 },
+  authorLink: { display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textDecoration: "none", color: "inherit" },
   name: { fontWeight: 600, fontSize: 15 },
   username: { fontSize: 12, color: "#65676b" },
   date: { fontSize: 12, color: "#65676b" },
@@ -18,6 +20,7 @@ const s = {
 
 export default function PostCard({ post, onUpdate, onDelete }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
   const handleLike = async () => {
@@ -43,15 +46,17 @@ export default function PostCard({ post, onUpdate, onDelete }) {
   return (
     <div style={s.card}>
       <div style={s.header}>
-        {post.author.avatar_url
-          ? <img src={post.author.avatar_url} alt="" style={s.avatar} />
-          : <div style={s.avatarPlaceholder}>{initials}</div>
-        }
-        <div>
-          <div style={s.name}>{post.author.name}</div>
-          {post.author.username && <div style={s.username}>@{post.author.username}</div>}
-          <div style={s.date}>{dateStr}</div>
+        <div style={s.authorLink} onClick={() => navigate(`/users/${post.author.id}`)}>
+          {post.author.avatar_url
+            ? <img src={post.author.avatar_url} alt="" style={s.avatar} />
+            : <div style={s.avatarPlaceholder}>{initials}</div>
+          }
+          <div>
+            <div style={s.name}>{post.author.name}</div>
+            {post.author.username && <div style={s.username}>@{post.author.username}</div>}
+          </div>
         </div>
+        <div style={{ ...s.date, marginLeft: "auto" }}>{dateStr}</div>
       </div>
       <p style={s.content}>{post.content}</p>
       <div style={s.actions}>
