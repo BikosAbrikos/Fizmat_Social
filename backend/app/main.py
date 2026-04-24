@@ -42,6 +42,7 @@ async def lifespan(app: FastAPI):
         conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS link_url VARCHAR(500)"))
         conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_url VARCHAR(1000)"))
         conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_type VARCHAR(10)"))
+        conn.execute(text("ALTER TABLE posts ALTER COLUMN content DROP NOT NULL"))
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS friend_requests (
                 id SERIAL PRIMARY KEY,
