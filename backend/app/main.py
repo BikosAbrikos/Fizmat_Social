@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.database import Base, engine
-from app.routers import auth, posts, users
+from app.routers import auth, friends, posts, users
 
 
 @asynccontextmanager
@@ -23,6 +23,15 @@ async def lifespan(app: FastAPI):
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS grade VARCHAR(10)"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(150)"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS future_major VARCHAR(100)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS friend_requests (
+                id SERIAL PRIMARY KEY,
+                sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
         conn.commit()
     yield
 
@@ -40,6 +49,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(posts.router)
+app.include_router(friends.router)
 
 
 @app.get("/")

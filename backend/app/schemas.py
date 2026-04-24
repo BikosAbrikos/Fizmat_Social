@@ -126,6 +126,22 @@ class UserUpdate(BaseModel):
         return v
 
 
+# ── Friends ───────────────────────────────────────────────────────────────────
+
+class FriendRequestOut(BaseModel):
+    id: int
+    sender: "UserOut"
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FriendStatusOut(BaseModel):
+    status: str  # none | pending_sent | pending_received | friends
+    request_id: Optional[int] = None
+
+
 # ── Post ──────────────────────────────────────────────────────────────────────
 
 class PostCreate(BaseModel):

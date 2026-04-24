@@ -16,7 +16,13 @@ const s = {
   rowLabel: { fontSize: 13, fontWeight: 600, color: "#65676b", minWidth: 110 },
   rowValue: { fontSize: 14, color: "#1c1e21", textAlign: "right", flex: 1 },
   bio: { fontSize: 14, color: "#1c1e21", lineHeight: 1.6, fontStyle: "italic", textAlign: "center", margin: "16px 0" },
-  editBtn: { display: "block", width: "100%", padding: 10, background: "#e7f3ff", color: "#1877f2", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 20 },
+  editBtn: { display: "block", width: "100%", padding: 10, background: "#e7f3ff", color: "#1877f2", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 8 },
+  friendBtn: { display: "block", width: "100%", padding: 10, background: "#1877f2", color: "#fff", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 20 },
+  pendingBtn: { display: "block", width: "100%", padding: 10, background: "#e4e6eb", color: "#65676b", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 600, marginTop: 20 },
+  friendsLabel: { display: "block", width: "100%", padding: 10, background: "#e7f3ff", color: "#1877f2", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 700, textAlign: "center", marginTop: 20 },
+  acceptRow: { display: "flex", gap: 8, marginTop: 20 },
+  acceptBtn: { flex: 1, padding: 10, background: "#1877f2", color: "#fff", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 700, cursor: "pointer" },
+  rejectBtn: { flex: 1, padding: 10, background: "#e4e6eb", color: "#1c1e21", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: "pointer" },
   error: { color: "#e41749", textAlign: "center", fontSize: 14 },
 };
 
@@ -25,13 +31,31 @@ export default function UserProfile() {
   const { user: me } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
+  const [friendStatus, setFriendStatus] = useState(null); // {status, request_id}
   const [error, setError] = useState("");
 
   useEffect(() => {
     api.get(`/api/users/${id}`)
       .then(({ data }) => setProfile(data))
       .catch(() => setError("User not found"));
+    api.get(`/api/friends/status/${id}`)
+      .then(({ data }) => setFriendStatus(data));
   }, [id]);
+
+  const sendRequest = async () => {
+    await api.post(`/api/friends/request/${id}`);
+    setFriendStatus({ status: "pending_sent" });
+  };
+
+  const handleAccept = async () => {
+    await api.post(`/api/friends/requests/${friendStatus.request_id}/accept`);
+    setFriendStatus({ status: "friends" });
+  };
+
+  const handleReject = async () => {
+    await api.post(`/api/friends/requests/${friendStatus.request_id}/reject`);
+    setFriendStatus({ status: "none" });
+  };
 
   if (error) return <div style={s.page}><div style={s.card}><p style={s.error}>{error}</p></div></div>;
   if (!profile) return <div style={s.page}><div style={s.card}><p style={{ textAlign: "center", color: "#65676b" }}>Loading...</p></div></div>;
@@ -79,6 +103,26 @@ export default function UserProfile() {
           <button style={s.editBtn} onClick={() => navigate("/profile")}>
             Edit my profile
           </button>
+        )}
+
+        {!isMe && friendStatus && (
+          <>
+            {friendStatus.status === "none" && (
+              <button style={s.friendBtn} onClick={sendRequest}>Add Friend</button>
+            )}
+            {friendStatus.status === "pending_sent" && (
+              <div style={s.pendingBtn}>Request Sent</div>
+            )}
+            {friendStatus.status === "friends" && (
+              <div style={s.friendsLabel}>Friends</div>
+            )}
+            {friendStatus.status === "pending_received" && (
+              <div style={s.acceptRow}>
+                <button style={s.acceptBtn} onClick={handleAccept}>Accept Request</button>
+                <button style={s.rejectBtn} onClick={handleReject}>Reject</button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

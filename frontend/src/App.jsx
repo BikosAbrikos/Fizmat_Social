@@ -4,6 +4,7 @@ import PrivateRoute from "./components/PrivateRoute";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Feed from "./pages/Feed";
 import Login from "./pages/Login";
+import Notifications from "./pages/Notifications";
 import Profile from "./pages/Profile";
 import Register from "./pages/Register";
 import UserProfile from "./pages/UserProfile";
@@ -24,6 +25,7 @@ function AppRoutes() {
         <Route path="/" element={<PrivateRoute><Feed /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
         <Route path="/users/:id" element={<PrivateRoute><UserProfile /></PrivateRoute>} />
+        <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
