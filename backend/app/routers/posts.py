@@ -1,9 +1,11 @@
 from typing import List
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
+from app.config import settings
 from app.database import get_db
 from app.models import Like, Post, User
 from app.schemas import PostCreate, PostOut
@@ -81,5 +83,27 @@ def delete_post(post_id: int, db: Session = Depends(get_db), current_user: User 
     post = db.query(Post).filter(Post.id == post_id, Post.author_id == current_user.id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found or not yours")
+
+    media_url = post.media_url  # grab before deleting from DB
     db.delete(post)
     db.commit()
+
+    # Delete the file from Supabase Storage (best-effort, don't fail if it errors)
+    if media_url and settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY:
+        try:
+            base = settings.SUPABASE_URL.rstrip("/")
+            # URL pattern: {base}/storage/v1/object/public/media/{path}
+            prefix = f"{base}/storage/v1/object/public/media/"
+            if media_url.startswith(prefix):
+                storage_path = media_url[len(prefix):]  # e.g. "posts/uuid.png"
+                delete_url = f"{base}/storage/v1/object/media/{storage_path}"
+                httpx.delete(
+                    delete_url,
+                    headers={
+                        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
+                        "apikey": settings.SUPABASE_SERVICE_KEY,
+                    },
+                    timeout=10,
+                )
+        except Exception:
+            pass  # storage cleanup failure should never block the delete response
