@@ -8,11 +8,15 @@ const s = {
   header: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 },
   avatar: { width: 40, height: 40, borderRadius: "50%", objectFit: "cover", background: "#e4e6eb" },
   avatarPlaceholder: { width: 40, height: 40, borderRadius: "50%", background: "#1877f2", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16 },
-  authorLink: { display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textDecoration: "none", color: "inherit" },
-  name: { fontWeight: 600, fontSize: 15 },
+  authorLink: { display: "flex", alignItems: "center", gap: 12, cursor: "pointer" },
+  name: { fontWeight: 600, fontSize: 15, color: "#1c1e21" },
   username: { fontSize: 12, color: "#65676b" },
   date: { fontSize: 12, color: "#65676b" },
-  title: { fontSize: 18, fontWeight: 700, lineHeight: 1.35, marginBottom: 8, color: "#1c1e21" },
+  title: {
+    fontSize: 18, fontWeight: 700, lineHeight: 1.35, marginBottom: 8,
+    color: "#1c1e21", cursor: "pointer", display: "inline-block",
+  },
+  titleHover: { textDecoration: "underline" },
   content: { fontSize: 15, lineHeight: 1.5, marginBottom: 12, color: "#1c1e21" },
   linkBox: {
     display: "block", marginBottom: 12, padding: "10px 14px",
@@ -21,8 +25,9 @@ const s = {
     wordBreak: "break-all", lineHeight: 1.4,
   },
   media: { width: "100%", maxHeight: 2000, objectFit: "contain", borderRadius: 8, marginBottom: 12, display: "block", background: "#f0f2f5" },
-  actions: { display: "flex", gap: 12, alignItems: "center" },
+  actions: { display: "flex", gap: 10, alignItems: "center", borderTop: "1px solid #f0f2f5", paddingTop: 10, marginTop: 4 },
   likeBtn: { border: "none", background: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "4px 8px", borderRadius: 6 },
+  commentBtn: { border: "none", background: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "4px 8px", borderRadius: 6, color: "#65676b" },
   deleteBtn: { border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "#e41749", marginLeft: "auto" },
 };
 
@@ -30,6 +35,7 @@ export default function PostCard({ post, onUpdate, onDelete }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [titleHovered, setTitleHovered] = useState(false);
 
   const handleLike = async () => {
     if (loading) return;
@@ -48,8 +54,11 @@ export default function PostCard({ post, onUpdate, onDelete }) {
     onDelete(post.id);
   };
 
+  const goToDetail = () => navigate(`/posts/${post.id}`);
+
   const initials = post.author.name.charAt(0).toUpperCase();
   const dateStr = new Date(post.created_at).toLocaleString();
+  const commentCount = post.comment_count ?? 0;
 
   return (
     <div style={s.card}>
@@ -67,7 +76,16 @@ export default function PostCard({ post, onUpdate, onDelete }) {
         <div style={{ ...s.date, marginLeft: "auto" }}>{dateStr}</div>
       </div>
 
-      {post.title && <div style={s.title}>{post.title}</div>}
+      {post.title && (
+        <div
+          style={{ ...s.title, ...(titleHovered ? s.titleHover : {}) }}
+          onClick={goToDetail}
+          onMouseEnter={() => setTitleHovered(true)}
+          onMouseLeave={() => setTitleHovered(false)}
+        >
+          {post.title}
+        </div>
+      )}
 
       {post.content && post.content.trim() && (
         <p style={s.content}>{post.content}</p>
@@ -94,6 +112,11 @@ export default function PostCard({ post, onUpdate, onDelete }) {
         >
           {post.liked_by_me ? "♥" : "♡"} {post.like_count} {post.like_count === 1 ? "Like" : "Likes"}
         </button>
+
+        <button style={s.commentBtn} onClick={goToDetail}>
+          💬 {commentCount} {commentCount === 1 ? "Comment" : "Comments"}
+        </button>
+
         {user?.id === post.author.id && (
           <button style={s.deleteBtn} onClick={handleDelete}>Delete</button>
         )}

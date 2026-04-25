@@ -207,5 +207,31 @@ class PostOut(BaseModel):
     author: UserOut
     like_count: int
     liked_by_me: bool
+    comment_count: int = 0  # default 0 for backward compatibility
+
+    model_config = {"from_attributes": True}
+
+
+# ── Comment ───────────────────────────────────────────────────────────────────
+
+class CommentCreate(BaseModel):
+    content: str
+
+    @field_validator("content")
+    @classmethod
+    def content_valid(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Comment cannot be empty")
+        if len(v) > 1000:
+            raise ValueError("Comment must be at most 1000 characters")
+        return v
+
+
+class CommentOut(BaseModel):
+    id: int
+    content: str
+    created_at: datetime
+    author: UserOut
 
     model_config = {"from_attributes": True}

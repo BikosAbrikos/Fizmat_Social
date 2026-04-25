@@ -44,6 +44,18 @@ async def lifespan(app: FastAPI):
         conn.execute(text("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_type VARCHAR(10)"))
         conn.execute(text("ALTER TABLE posts ALTER COLUMN content DROP NOT NULL"))
         conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS comments (
+                id SERIAL PRIMARY KEY,
+                post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                author_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_comments_post_id ON comments (post_id)"
+        ))
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS friend_requests (
                 id SERIAL PRIMARY KEY,
                 sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

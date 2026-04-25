@@ -6,6 +6,7 @@ import Chats from "./pages/Chats";
 import Feed from "./pages/Feed";
 import Login from "./pages/Login";
 import Notifications from "./pages/Notifications";
+import PostDetail from "./pages/PostDetail";
 import Profile from "./pages/Profile";
 import Register from "./pages/Register";
 import Submit from "./pages/Submit";
@@ -30,6 +31,7 @@ function AppRoutes() {
         <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
         <Route path="/chats" element={<PrivateRoute><Chats /></PrivateRoute>} />
         <Route path="/submit" element={<PrivateRoute><Submit /></PrivateRoute>} />
+        <Route path="/posts/:id" element={<PrivateRoute><PostDetail /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
