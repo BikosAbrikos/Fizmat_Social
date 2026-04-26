@@ -2,13 +2,37 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover unlocks safe-area-inset for iPhone notch/home bar -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>FizMat Social</title>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1c1e21; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #f0f2f5;
+        color: #1c1e21;
+        /* space for fixed bottom nav on mobile */
+        padding-bottom: 0;
+      }
       a { color: #1877f2; text-decoration: none; }
       a:hover { text-decoration: underline; }
+
+      /* Prevent double-tap zoom on interactive elements */
+      button, a, input, textarea, select {
+        touch-action: manipulation;
+      }
+
+      /* iOS auto-zoom prevention: inputs must be ≥ 16px font-size.
+         Using !important because components use inline styles. */
+      @media (max-width: 640px) {
+        input, textarea, select {
+          font-size: 16px !important;
+        }
+        /* Reserve space for the fixed bottom nav bar */
+        body {
+          padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+        }
+      }
     </style>
   </head>
   <body>

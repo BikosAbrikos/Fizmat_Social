@@ -2,14 +2,32 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { useIsMobile } from "../hooks/useIsMobile";
 
-const NAVBAR_H = 56;
+const NAVBAR_H = 56; // desktop top-nav height
+const MOBILE_TOP_H = 52; // mobile slim top-bar height
+const MOBILE_BOT_H = 60; // mobile bottom-tab-bar height
 
 const s = {
-  root: { display: "flex", height: `calc(100vh - ${NAVBAR_H}px)`, overflow: "hidden", background: "#f0f2f5" },
+  // Root fills remaining viewport height
+  root: (isMobile) => ({
+    display: "flex",
+    height: isMobile
+      ? `calc(100vh - ${MOBILE_TOP_H}px - ${MOBILE_BOT_H}px - env(safe-area-inset-bottom, 0px))`
+      : `calc(100vh - ${NAVBAR_H}px)`,
+    overflow: "hidden",
+    background: "#f0f2f5",
+  }),
 
   // ── Sidebar ──────────────────────────────────────────────────────
-  sidebar: { width: 280, minWidth: 280, background: "#fff", borderRight: "1px solid #e4e6eb", display: "flex", flexDirection: "column" },
+  sidebar: (isMobile) => ({
+    width: isMobile ? "100%" : 280,
+    minWidth: isMobile ? "100%" : 280,
+    background: "#fff",
+    borderRight: isMobile ? "none" : "1px solid #e4e6eb",
+    display: "flex",
+    flexDirection: "column",
+  }),
   sidebarHead: { padding: "14px 12px 10px", borderBottom: "1px solid #e4e6eb" },
   sidebarTitle: { fontSize: 18, fontWeight: 700, marginBottom: 10 },
   searchWrap: { position: "relative" },
@@ -18,24 +36,29 @@ const s = {
   dropItem: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", cursor: "pointer", fontSize: 14 },
   dropItemHover: { background: "#f0f2f5" },
   friendList: { flex: 1, overflowY: "auto" },
-  friendItem: { display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", cursor: "pointer", borderLeft: "3px solid transparent" },
+  friendItem: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", cursor: "pointer", borderLeft: "3px solid transparent" },
   friendItemActive: { background: "#e7f3ff", borderLeft: "3px solid #1877f2" },
-  friendName: { fontWeight: 600, fontSize: 14 },
+  friendName: { fontWeight: 600, fontSize: 15 },
   friendUser: { fontSize: 12, color: "#65676b" },
   emptyFriends: { padding: 20, color: "#65676b", fontSize: 13, textAlign: "center" },
 
   // ── Avatar ───────────────────────────────────────────────────────
-  av: { width: 38, height: 38, borderRadius: "50%", objectFit: "cover", flexShrink: 0 },
-  avPh: (size = 38) => ({ width: size, height: size, borderRadius: "50%", background: "#1877f2", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: size * 0.4, flexShrink: 0 }),
+  av: { borderRadius: "50%", objectFit: "cover", flexShrink: 0 },
+  avPh: (size) => ({
+    width: size, height: size, borderRadius: "50%", background: "#1877f2",
+    color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+    fontWeight: 700, fontSize: Math.floor(size * 0.4), flexShrink: 0,
+  }),
 
   // ── Chat area ────────────────────────────────────────────────────
   chatArea: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" },
-  chatHeader: { display: "flex", alignItems: "center", gap: 10, padding: "12px 20px", background: "#fff", borderBottom: "1px solid #e4e6eb" },
+  chatHeader: { display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "#fff", borderBottom: "1px solid #e4e6eb" },
+  backBtn: { background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "#1877f2", padding: "0 8px 0 0", lineHeight: 1 },
   chatHeaderName: { fontWeight: 700, fontSize: 16 },
   chatHeaderUser: { fontSize: 13, color: "#65676b" },
-  messages: { flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 6 },
+  messages: { flex: 1, overflowY: "auto", padding: "16px 16px", display: "flex", flexDirection: "column", gap: 6 },
   bubble: (mine) => ({
-    maxWidth: "65%",
+    maxWidth: "72%",
     padding: "8px 12px",
     borderRadius: mine ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
     background: mine ? "#1877f2" : "#f0f2f5",
@@ -46,11 +69,11 @@ const s = {
     wordBreak: "break-word",
   }),
   bubbleTime: (mine) => ({ fontSize: 10, color: mine ? "rgba(255,255,255,0.7)" : "#65676b", marginTop: 2, textAlign: mine ? "right" : "left" }),
-  inputRow: { display: "flex", gap: 10, padding: "12px 20px", background: "#fff", borderTop: "1px solid #e4e6eb" },
+  inputRow: { display: "flex", gap: 8, padding: "10px 12px", background: "#fff", borderTop: "1px solid #e4e6eb" },
   msgInput: { flex: 1, padding: "10px 14px", border: "1px solid #ccd0d5", borderRadius: 20, fontSize: 14, outline: "none", fontFamily: "inherit" },
-  sendBtn: { padding: "10px 20px", background: "#1877f2", color: "#fff", border: "none", borderRadius: 20, fontWeight: 700, cursor: "pointer", fontSize: 14 },
+  sendBtn: { padding: "10px 18px", background: "#1877f2", color: "#fff", border: "none", borderRadius: 20, fontWeight: 700, cursor: "pointer", fontSize: 14, whiteSpace: "nowrap" },
 
-  // ── Welcome ──────────────────────────────────────────────────────
+  // ── Welcome (desktop only) ───────────────────────────────────────
   welcome: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#65676b" },
   welcomeIcon: { fontSize: 48, marginBottom: 12 },
   welcomeTitle: { fontSize: 20, fontWeight: 700, marginBottom: 6, color: "#1c1e21" },
@@ -60,9 +83,11 @@ const s = {
 export default function Chats() {
   const { user: me } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const [friends, setFriends] = useState([]);
-  const [selected, setSelected] = useState(null); // friend object
+  const [selected, setSelected] = useState(null);
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMsg, setNewMsg] = useState("");
   const [sending, setSending] = useState(false);
@@ -75,12 +100,10 @@ export default function Chats() {
   const pollRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Load friends on mount
   useEffect(() => {
     api.get("/api/friends").then(({ data }) => setFriends(data));
   }, []);
 
-  // Search users by username
   useEffect(() => {
     if (search.trim().length < 2) { setSearchResults([]); return; }
     const t = setTimeout(() => {
@@ -91,7 +114,6 @@ export default function Chats() {
     return () => clearTimeout(t);
   }, [search]);
 
-  // Load messages when friend selected
   useEffect(() => {
     if (!selected) return;
     lastIdRef.current = 0;
@@ -102,7 +124,6 @@ export default function Chats() {
     });
   }, [selected]);
 
-  // Poll for new messages every 2s
   useEffect(() => {
     if (!selected) return;
     pollRef.current = setInterval(async () => {
@@ -117,7 +138,6 @@ export default function Chats() {
     return () => clearInterval(pollRef.current);
   }, [selected]);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -141,7 +161,17 @@ export default function Chats() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(e); }
   };
 
-  const selectFriend = (f) => { setSelected(f); setSearch(""); setSearchResults([]); };
+  const selectFriend = (f) => {
+    setSelected(f);
+    setSearch("");
+    setSearchResults([]);
+    if (isMobile) setMobileChatOpen(true);
+  };
+
+  const goBackToSidebar = () => {
+    setMobileChatOpen(false);
+    setSelected(null);
+  };
 
   const isFriend = (userId) => friends.some(f => f.id === userId);
 
@@ -158,72 +188,82 @@ export default function Chats() {
     ? <img src={user.avatar_url} alt="" style={{ ...s.av, width: size, height: size }} />
     : <div style={s.avPh(size)}>{user.name.charAt(0).toUpperCase()}</div>;
 
+  // ── Mobile: show sidebar OR chat, never both ───────────────────────────
+  const showSidebar = !isMobile || !mobileChatOpen;
+  const showChat = !isMobile || mobileChatOpen;
+
   return (
-    <div style={s.root}>
+    <div style={s.root(isMobile)}>
 
       {/* ── Sidebar ── */}
-      <div style={s.sidebar}>
-        <div style={s.sidebarHead}>
-          <div style={s.sidebarTitle}>Chats</div>
-          <div style={s.searchWrap}>
-            <input
-              style={s.searchInput}
-              placeholder="Search by @username"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onBlur={() => setTimeout(() => setSearchResults([]), 200)}
-            />
-            {searchResults.length > 0 && (
-              <div style={s.dropdown}>
-                {searchResults.map(u => (
-                  <div
-                    key={u.id}
-                    style={{ ...s.dropItem, ...(hoveredDrop === u.id ? s.dropItemHover : {}) }}
-                    onMouseEnter={() => setHoveredDrop(u.id)}
-                    onMouseLeave={() => setHoveredDrop(null)}
-                    onMouseDown={() => {
-                      if (isFriend(u.id)) selectFriend(u);
-                      else navigate(`/users/${u.id}`);
-                    }}
-                  >
-                    <Avatar user={u} size={32} />
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>{u.name}</div>
-                      <div style={{ fontSize: 11, color: isFriend(u.id) ? "#1877f2" : "#65676b" }}>
-                        {u.username ? `@${u.username}` : ""} {isFriend(u.id) ? "· friend" : "· not a friend"}
+      {showSidebar && (
+        <div style={s.sidebar(isMobile)}>
+          <div style={s.sidebarHead}>
+            <div style={s.sidebarTitle}>Chats</div>
+            <div style={s.searchWrap}>
+              <input
+                style={s.searchInput}
+                placeholder="Search by @username"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onBlur={() => setTimeout(() => setSearchResults([]), 200)}
+              />
+              {searchResults.length > 0 && (
+                <div style={s.dropdown}>
+                  {searchResults.map(u => (
+                    <div
+                      key={u.id}
+                      style={{ ...s.dropItem, ...(hoveredDrop === u.id ? s.dropItemHover : {}) }}
+                      onMouseEnter={() => setHoveredDrop(u.id)}
+                      onMouseLeave={() => setHoveredDrop(null)}
+                      onMouseDown={() => {
+                        if (isFriend(u.id)) selectFriend(u);
+                        else navigate(`/users/${u.id}`);
+                      }}
+                    >
+                      <Avatar user={u} size={32} />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{u.name}</div>
+                        <div style={{ fontSize: 11, color: isFriend(u.id) ? "#1877f2" : "#65676b" }}>
+                          {u.username ? `@${u.username}` : ""} {isFriend(u.id) ? "· friend" : "· not a friend"}
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={s.friendList}>
+            {friends.length === 0
+              ? <div style={s.emptyFriends}>No friends yet.<br />Add some to start chatting!</div>
+              : friends.map(f => (
+                  <div
+                    key={f.id}
+                    style={{ ...s.friendItem, ...(!isMobile && selected?.id === f.id ? s.friendItemActive : {}) }}
+                    onClick={() => selectFriend(f)}
+                  >
+                    <Avatar user={f} size={40} />
+                    <div>
+                      <div style={s.friendName}>{f.name}</div>
+                      {f.username && <div style={s.friendUser}>@{f.username}</div>}
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+            }
           </div>
         </div>
-
-        <div style={s.friendList}>
-          {friends.length === 0
-            ? <div style={s.emptyFriends}>No friends yet.<br />Add some to start chatting!</div>
-            : friends.map(f => (
-                <div
-                  key={f.id}
-                  style={{ ...s.friendItem, ...(selected?.id === f.id ? s.friendItemActive : {}) }}
-                  onClick={() => selectFriend(f)}
-                >
-                  <Avatar user={f} size={38} />
-                  <div>
-                    <div style={s.friendName}>{f.name}</div>
-                    {f.username && <div style={s.friendUser}>@{f.username}</div>}
-                  </div>
-                </div>
-              ))
-          }
-        </div>
-      </div>
+      )}
 
       {/* ── Chat area ── */}
-      {selected ? (
+      {showChat && selected && (
         <div style={s.chatArea}>
           <div style={s.chatHeader}>
+            {/* Back button on mobile */}
+            {isMobile && (
+              <button style={s.backBtn} onClick={goBackToSidebar}>←</button>
+            )}
             <Avatar user={selected} size={40} />
             <div>
               <div style={s.chatHeaderName}>{selected.name}</div>
@@ -234,7 +274,6 @@ export default function Chats() {
           <div style={s.messages}>
             {messages.map((msg, idx) => {
               const mine = msg.sender_id === me?.id;
-              // Show "Seen" only under the last message I sent that has been read
               const isLastReadSent = mine && msg.read && (
                 idx === messages.length - 1 ||
                 !messages.slice(idx + 1).some(m => m.sender_id === me?.id && m.read)
@@ -256,18 +295,21 @@ export default function Chats() {
             <input
               ref={inputRef}
               style={s.msgInput}
-              placeholder={`Message ${selected.name}...`}
+              placeholder={`Message ${selected.name}…`}
               value={newMsg}
               onChange={e => setNewMsg(e.target.value)}
               onKeyDown={handleKeyDown}
-              autoFocus
+              autoFocus={!isMobile}
             />
             <button style={s.sendBtn} type="submit" disabled={sending || !newMsg.trim()}>
               Send
             </button>
           </form>
         </div>
-      ) : (
+      )}
+
+      {/* ── Welcome screen (desktop only, no friend selected) ── */}
+      {!isMobile && !selected && (
         <div style={s.welcome}>
           <div style={s.welcomeIcon}>💬</div>
           <div style={s.welcomeTitle}>Your messages</div>
