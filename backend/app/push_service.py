@@ -19,7 +19,9 @@ def send_push(user_id: int, title: str, body: str, url: str = "/") -> None:
         logger.error("pywebpush is not installed")
         return
 
-    private_pem = base64.b64decode(settings.VAPID_PRIVATE_KEY).decode()
+    from py_vapid import Vapid
+    private_pem_bytes = base64.b64decode(settings.VAPID_PRIVATE_KEY)
+    vapid = Vapid.from_pem(private_pem_bytes)
 
     db = SessionLocal()
     try:
@@ -36,7 +38,7 @@ def send_push(user_id: int, title: str, body: str, url: str = "/") -> None:
                         "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
                     },
                     data=json.dumps({"title": title, "body": body, "url": url}),
-                    vapid_private_key=private_pem,
+                    vapid_private_key=vapid,
                     vapid_claims={"sub": settings.VAPID_CLAIM_EMAIL},
                 )
                 logger.info(f"Push sent to user {user_id}")
