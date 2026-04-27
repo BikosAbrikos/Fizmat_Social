@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.database import Base, engine
-from app.routers import auth, chats, friends, media, posts, push, users
+from app.routers import auth, chats, communities, friends, media, posts, push, users
 
 
 @asynccontextmanager
@@ -74,6 +74,42 @@ async def lifespan(app: FastAPI):
                 created_at TIMESTAMP DEFAULT NOW()
             )
         """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS communities (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(50) NOT NULL UNIQUE,
+                description VARCHAR(300),
+                avatar_url VARCHAR(500),
+                is_private BOOLEAN NOT NULL DEFAULT FALSE,
+                owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_communities_name ON communities (name)"
+        ))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS community_members (
+                id SERIAL PRIMARY KEY,
+                community_id INTEGER NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                role VARCHAR(20) NOT NULL DEFAULT 'member',
+                joined_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(community_id, user_id)
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS community_join_requests (
+                id SERIAL PRIMARY KEY,
+                community_id INTEGER NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        conn.execute(text(
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS community_id INTEGER REFERENCES communities(id) ON DELETE SET NULL"
+        ))
         conn.commit()
     yield
 
@@ -95,6 +131,7 @@ app.include_router(friends.router)
 app.include_router(media.router)
 app.include_router(chats.router)
 app.include_router(push.router)
+app.include_router(communities.router)
 
 
 @app.get("/")

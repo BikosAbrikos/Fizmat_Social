@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session, joinedload, subqueryload
 from app.auth import get_current_user
 from app.config import settings
 from app.database import get_db
-from app.models import Comment, Like, Post, User
-from app.schemas import CommentCreate, CommentOut, PostCreate, PostOut
+from app.models import Comment, Community, CommunityMember, Like, Post, User
+from app.schemas import CommentCreate, CommentOut, CommunityBrief, PostCreate, PostOut
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
@@ -21,6 +21,7 @@ def _load_post(db: Session, post_id: int) -> Post | None:
             joinedload(Post.author),
             subqueryload(Post.likes),
             subqueryload(Post.comments),
+            joinedload(Post.community),
         )
         .filter(Post.id == post_id)
         .first()
@@ -29,6 +30,13 @@ def _load_post(db: Session, post_id: int) -> Post | None:
 
 def _serialize_post(post: Post, current_user_id: int) -> PostOut:
     liked_by_me = any(like.user_id == current_user_id for like in post.likes)
+    community_brief = None
+    if getattr(post, "community", None):
+        community_brief = CommunityBrief(
+            id=post.community.id,
+            name=post.community.name,
+            avatar_url=post.community.avatar_url,
+        )
     return PostOut(
         id=post.id,
         title=post.title,
@@ -41,6 +49,7 @@ def _serialize_post(post: Post, current_user_id: int) -> PostOut:
         like_count=len(post.likes),
         liked_by_me=liked_by_me,
         comment_count=len(post.comments),
+        community=community_brief,
     )
 
 
@@ -59,6 +68,7 @@ def get_feed(
             joinedload(Post.author),
             subqueryload(Post.likes),
             subqueryload(Post.comments),
+            joinedload(Post.community),
         )
         .order_by(Post.created_at.desc())
         .offset(skip)
@@ -90,6 +100,19 @@ def create_post(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    resolved_community_id = None
+    if body.community_id is not None:
+        community = db.query(Community).filter(Community.id == body.community_id).first()
+        if not community:
+            raise HTTPException(status_code=404, detail="Community not found")
+        is_member = db.query(CommunityMember).filter(
+            CommunityMember.community_id == body.community_id,
+            CommunityMember.user_id == current_user.id,
+        ).first()
+        if not is_member:
+            raise HTTPException(status_code=403, detail="You must be a member of the community to post in it")
+        resolved_community_id = body.community_id
+
     post = Post(
         title=body.title,
         content=body.content or None,
@@ -97,6 +120,7 @@ def create_post(
         media_url=body.media_url or None,
         media_type=body.media_type or None,
         author_id=current_user.id,
+        community_id=resolved_community_id,
     )
     db.add(post)
     db.commit()

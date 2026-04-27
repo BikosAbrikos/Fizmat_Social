@@ -49,11 +49,12 @@ const ms = {
 };
 
 const TABS = [
-  { path: "/",             icon: "🏠", label: "Feed" },
-  { path: "/submit",       icon: "✏️", label: "Post" },
-  { path: "/chats",        icon: "💬", label: "Chats" },
-  { path: "/notifications",icon: "🔔", label: "Alerts" },
-  { path: "/profile",      icon: "👤", label: "Profile" },
+  { path: "/",              icon: "🏠", label: "Feed" },
+  { path: "/communities",   icon: "🏘️", label: "Groups" },
+  { path: "/submit",        icon: "✏️", label: "Post" },
+  { path: "/chats",         icon: "💬", label: "Chats" },
+  { path: "/notifications", icon: "🔔", label: "Alerts" },
+  { path: "/profile",       icon: "👤", label: "Profile" },
 ];
 
 export default function Navbar() {
@@ -127,6 +128,7 @@ export default function Navbar() {
       {user && (
         <div style={ds.links}>
           <Link to="/" style={ds.link}>Feed</Link>
+          <Link to="/communities" style={ds.link}>Communities</Link>
           <Link to="/chats" style={ds.link}>Chats</Link>
           <div style={ds.notifWrap}>
             <Link to="/notifications" style={ds.link}>Notifications</Link>

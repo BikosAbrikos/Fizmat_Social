@@ -184,6 +184,7 @@ class PostCreate(BaseModel):
     media_url: Optional[str] = None
     media_type: Optional[str] = None
     link_url: Optional[str] = None
+    community_id: Optional[int] = None
 
     @field_validator("title")
     @classmethod
@@ -208,6 +209,81 @@ class PostOut(BaseModel):
     like_count: int
     liked_by_me: bool
     comment_count: int = 0  # default 0 for backward compatibility
+    community: Optional["CommunityBrief"] = None
+
+    model_config = {"from_attributes": True}
+
+
+# ── Community ─────────────────────────────────────────────────────────────────
+
+class CommunityCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    is_private: bool = False
+
+    @field_validator("name")
+    @classmethod
+    def name_valid(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 3:
+            raise ValueError("Community name must be at least 3 characters")
+        if len(v) > 50:
+            raise ValueError("Community name must be at most 50 characters")
+        if not re.match(r'^[a-zA-Z0-9 _-]+$', v):
+            raise ValueError("Name can only contain letters, numbers, spaces, hyphens, and underscores")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def description_max(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v) > 300:
+            raise ValueError("Description must be at most 300 characters")
+        return v
+
+
+class CommunityUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    avatar_url: Optional[str] = None
+    is_private: Optional[bool] = None
+
+
+class CommunityBrief(BaseModel):
+    id: int
+    name: str
+    avatar_url: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class CommunityOut(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    avatar_url: Optional[str]
+    is_private: bool
+    owner_id: int
+    created_at: datetime
+    member_count: int
+    my_role: Optional[str]  # owner/moderator/member/pending/None
+
+    model_config = {"from_attributes": True}
+
+
+class CommunityMemberOut(BaseModel):
+    id: int
+    user: UserOut
+    role: str
+    joined_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class JoinRequestOut(BaseModel):
+    id: int
+    user: UserOut
+    status: str
+    created_at: datetime
 
     model_config = {"from_attributes": True}
 

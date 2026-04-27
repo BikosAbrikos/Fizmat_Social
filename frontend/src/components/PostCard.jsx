@@ -12,6 +12,10 @@ const s = {
   name: { fontWeight: 600, fontSize: 15, color: "#1c1e21" },
   username: { fontSize: 12, color: "#65676b" },
   date: { fontSize: 12, color: "#65676b" },
+  communityBadge: { display: "inline-flex", alignItems: "center", gap: 5, background: "#f0f2f5", borderRadius: 12, padding: "3px 10px", marginBottom: 8, cursor: "pointer", fontSize: 12, color: "#1877f2", fontWeight: 600 },
+  communityBadgeImg: { width: 16, height: 16, borderRadius: "50%", objectFit: "cover" },
+  communityBadgeDot: { width: 10, height: 10, borderRadius: "50%", background: "#1877f2", display: "inline-block" },
+  communityBadgeText: {},
   title: {
     fontSize: 18, fontWeight: 700, lineHeight: 1.35, marginBottom: 8,
     color: "#1c1e21", cursor: "pointer", display: "inline-block",
@@ -75,6 +79,19 @@ export default function PostCard({ post, onUpdate, onDelete }) {
         </div>
         <div style={{ ...s.date, marginLeft: "auto" }}>{dateStr}</div>
       </div>
+
+      {post.community && (
+        <div
+          style={s.communityBadge}
+          onClick={(e) => { e.stopPropagation(); navigate(`/communities/${post.community.id}`); }}
+        >
+          {post.community.avatar_url
+            ? <img src={post.community.avatar_url} alt="" style={s.communityBadgeImg} />
+            : <span style={s.communityBadgeDot} />
+          }
+          <span style={s.communityBadgeText}>c/{post.community.name}</span>
+        </div>
+      )}
 
       {post.title && (
         <div

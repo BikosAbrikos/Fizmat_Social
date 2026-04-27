@@ -4,6 +4,9 @@ import PrivateRoute from "./components/PrivateRoute";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { usePushNotifications } from "./hooks/usePushNotifications";
 import Chats from "./pages/Chats";
+import Communities from "./pages/Communities";
+import CommunityDetail from "./pages/CommunityDetail";
+import CreateCommunity from "./pages/CreateCommunity";
 import Feed from "./pages/Feed";
 import Login from "./pages/Login";
 import Notifications from "./pages/Notifications";
@@ -36,6 +39,9 @@ function AppRoutes() {
         <Route path="/chats" element={<PrivateRoute><Chats /></PrivateRoute>} />
         <Route path="/submit" element={<PrivateRoute><Submit /></PrivateRoute>} />
         <Route path="/posts/:id" element={<PrivateRoute><PostDetail /></PrivateRoute>} />
+        <Route path="/communities" element={<PrivateRoute><Communities /></PrivateRoute>} />
+        <Route path="/communities/create" element={<PrivateRoute><CreateCommunity /></PrivateRoute>} />
+        <Route path="/communities/:id" element={<PrivateRoute><CommunityDetail /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

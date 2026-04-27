@@ -37,10 +37,12 @@ class Post(Base):
     link_url = Column(String(500), nullable=True)
     media_url = Column(String(1000), nullable=True)
     media_type = Column(String(10), nullable=True)  # "image" or "video"
+    community_id = Column(Integer, ForeignKey("communities.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     author = relationship("User", back_populates="posts")
+    community = relationship("Community", foreign_keys=[community_id])
     likes = relationship("Like", back_populates="post", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="post", cascade="all, delete-orphan")
 
@@ -120,3 +122,45 @@ class EmailVerification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=False)
     used = Column(Boolean, default=False, nullable=False)
+
+
+class Community(Base):
+    __tablename__ = "communities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), unique=True, nullable=False, index=True)
+    description = Column(String(300), nullable=True)
+    avatar_url = Column(String(500), nullable=True)
+    is_private = Column(Boolean, default=False, nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    owner = relationship("User", foreign_keys=[owner_id])
+    members = relationship("CommunityMember", back_populates="community", cascade="all, delete-orphan")
+    join_requests = relationship("CommunityJoinRequest", back_populates="community", cascade="all, delete-orphan")
+
+
+class CommunityMember(Base):
+    __tablename__ = "community_members"
+
+    id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role = Column(String(20), default="member", nullable=False)  # owner/moderator/member
+    joined_at = Column(DateTime, default=datetime.utcnow)
+
+    community = relationship("Community", back_populates="members")
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class CommunityJoinRequest(Base):
+    __tablename__ = "community_join_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    community_id = Column(Integer, ForeignKey("communities.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(20), default="pending", nullable=False)  # pending/accepted/rejected
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    community = relationship("Community", back_populates="join_requests")
+    user = relationship("User", foreign_keys=[user_id])

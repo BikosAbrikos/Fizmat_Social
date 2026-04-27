@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../api/client";
+import { useAuth } from "../context/AuthContext";
 
 const TABS = ["Text", "Images & Video", "Link"];
 
@@ -48,6 +49,15 @@ const s = {
   postBtnDisabled: { opacity: 0.5, cursor: "not-allowed" },
 
   error: { color: "#e41749", fontSize: 13, padding: "0 16px 12px" },
+
+  // community selector
+  communityRow: { padding: "0 16px 12px" },
+  communityLabel: { fontSize: 13, fontWeight: 600, color: "#65676b", marginBottom: 4, display: "block" },
+  communitySelect: {
+    width: "100%", padding: "9px 12px", border: "1px solid #ccd0d5",
+    borderRadius: 6, fontSize: 14, fontFamily: "inherit", outline: "none",
+    background: "#fff", cursor: "pointer", boxSizing: "border-box",
+  },
 };
 
 const MAX_W = 2000;
@@ -55,6 +65,8 @@ const MAX_H = 2000;
 
 export default function Submit() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const [tab, setTab] = useState("Text");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -65,6 +77,24 @@ export default function Submit() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef(null);
+  const [myCommunities, setMyCommunities] = useState([]);
+  const [selectedCommunityId, setSelectedCommunityId] = useState("");
+
+  // Fetch communities I'm a member of
+  useEffect(() => {
+    if (!user) return;
+    api.get("/api/communities/me/joined")
+      .then(({ data }) => {
+        setMyCommunities(data);
+        // Auto-select from URL param if present
+        const paramId = searchParams.get("communityId");
+        if (paramId) {
+          const found = data.find((c) => String(c.id) === paramId);
+          if (found) setSelectedCommunityId(String(found.id));
+        }
+      })
+      .catch(() => {});
+  }, [user?.id]);
 
   const checkDimensions = (f, type) =>
     new Promise((resolve, reject) => {
@@ -138,6 +168,7 @@ export default function Submit() {
         link_url: tab === "Link" ? (linkUrl.trim() || null) : null,
         media_url,
         media_type,
+        community_id: selectedCommunityId ? parseInt(selectedCommunityId, 10) : null,
       });
 
       navigate("/");
@@ -168,6 +199,23 @@ export default function Submit() {
             />
             <div style={s.titleCount}>{title.length}/300</div>
           </div>
+
+          {/* Community selector */}
+          {myCommunities.length > 0 && (
+            <div style={s.communityRow}>
+              <label style={s.communityLabel}>Post to</label>
+              <select
+                style={s.communitySelect}
+                value={selectedCommunityId}
+                onChange={e => setSelectedCommunityId(e.target.value)}
+              >
+                <option value="">General Feed</option>
+                {myCommunities.map(c => (
+                  <option key={c.id} value={String(c.id)}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Tabs */}
           <div style={s.tabBar}>
