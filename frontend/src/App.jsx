@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import PrivateRoute from "./components/PrivateRoute";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { usePushNotifications } from "./hooks/usePushNotifications";
 import Chats from "./pages/Chats";
 import Feed from "./pages/Feed";
 import Login from "./pages/Login";
@@ -19,6 +20,9 @@ function PublicRoute({ children }) {
 }
 
 function AppRoutes() {
+  const { user } = useAuth();
+  usePushNotifications(user);
+
   return (
     <>
       <Navbar />

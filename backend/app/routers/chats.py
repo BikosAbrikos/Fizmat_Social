@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import DirectMessage, FriendRequest, User
+from app.push_service import send_push
 from app.schemas import MessageCreate, MessageOut, UnreadChatOut
 
 router = APIRouter(prefix="/api/chats", tags=["chats"])
@@ -92,6 +93,7 @@ def get_messages(
 def send_message(
     friend_id: int,
     body: MessageCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -106,4 +108,11 @@ def send_message(
     db.add(msg)
     db.commit()
     db.refresh(msg)
+    preview = body.content.strip()[:60]
+    background_tasks.add_task(
+        send_push, friend_id,
+        current_user.name,
+        preview,
+        "/chats",
+    )
     return msg

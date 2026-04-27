@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import FriendRequest, User
+from app.push_service import send_push
 from app.schemas import FriendRequestOut, FriendStatusOut, UserOut
 
 router = APIRouter(prefix="/api/friends", tags=["friends"])
@@ -17,7 +18,7 @@ def _get_request(db: Session, request_id: int, current_user: User) -> FriendRequ
 
 
 @router.post("/request/{user_id}", status_code=201)
-def send_request(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def send_request(user_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot send request to yourself")
 
@@ -37,6 +38,12 @@ def send_request(user_id: int, db: Session = Depends(get_db), current_user: User
     db.add(req)
     db.commit()
     db.refresh(req)
+    background_tasks.add_task(
+        send_push, user_id,
+        "New friend request",
+        f"{current_user.name} wants to be your friend",
+        "/notifications",
+    )
     return {"message": "Friend request sent"}
 
 
