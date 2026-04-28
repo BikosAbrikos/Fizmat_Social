@@ -1,11 +1,15 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
+from app.config import settings
 from app.database import Base, engine
 from app.routers import auth, blocks, chats, communities, friends, media, posts, push, users
+from app.security import limiter
 
 
 @asynccontextmanager
@@ -130,15 +134,41 @@ async def lifespan(app: FastAPI):
         """))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blocks_blocker ON blocks (blocker_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blocks_blocked ON blocks (blocked_id)"))
+        conn.execute(text(
+            "ALTER TABLE email_verifications ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0"
+        ))
         conn.commit()
     yield
 
 
 app = FastAPI(title="FizMat Social", lifespan=lifespan)
 
+# ── Rate limiting ─────────────────────────────────────────────────────────────
+app.state.limiter = limiter
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Please slow down."},
+    )
+
+# ── Security headers ──────────────────────────────────────────────────────────
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
+
+# ── CORS ──────────────────────────────────────────────────────────────────────
+origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

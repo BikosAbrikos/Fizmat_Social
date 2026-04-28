@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models import Block, FriendRequest, User
 from app.push_service import send_push
 from app.schemas import FriendRequestOut, FriendStatusOut, UserOut
+from app.security import limiter
 
 router = APIRouter(prefix="/api/friends", tags=["friends"])
 
@@ -18,7 +19,8 @@ def _get_request(db: Session, request_id: int, current_user: User) -> FriendRequ
 
 
 @router.post("/request/{user_id}", status_code=201)
-def send_request(user_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@limiter.limit("20/hour")
+def send_request(request: Request, user_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot send request to yourself")
 

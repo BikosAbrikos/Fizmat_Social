@@ -1,12 +1,13 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import FriendRequest, Post, User
 from app.schemas import PostOut, UserOut, UserUpdate
+from app.security import limiter
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -41,7 +42,8 @@ def update_me(body: UserUpdate, db: Session = Depends(get_db), current_user: Use
 
 
 @router.get("/search", response_model=list[UserOut])
-def search_users(q: str = "", db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@limiter.limit("30/minute")
+def search_users(request: Request, q: str = "", db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if len(q.strip()) < 2:
         return []
     term = q.strip().lstrip("@")

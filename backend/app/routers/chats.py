@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models import Block, DirectMessage, FriendRequest, User
 from app.push_service import send_push
 from app.schemas import MessageCreate, MessageOut, UnreadChatOut
+from app.security import limiter
 
 router = APIRouter(prefix="/api/chats", tags=["chats"])
 
@@ -102,7 +103,9 @@ def get_messages(
 
 
 @router.post("/{friend_id}/messages", response_model=MessageOut, status_code=201)
+@limiter.limit("60/minute")
 def send_message(
+    request: Request,
     friend_id: int,
     body: MessageCreate,
     background_tasks: BackgroundTasks,

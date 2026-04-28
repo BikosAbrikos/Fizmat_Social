@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     VAPID_PUBLIC_KEY: str = ""    # base64url uncompressed EC point, for browser applicationServerKey
     VAPID_CLAIM_EMAIL: str = "mailto:admin@fizmat.kz"
 
+    # Set to your actual frontend domain in production, e.g. "https://fizmat.example.com"
+    ALLOWED_ORIGINS: str = "*"
 
     class Config:
         env_file = ".env"

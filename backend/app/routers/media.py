@@ -1,11 +1,12 @@
 import uuid
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 
 from app.auth import get_current_user
 from app.config import settings
 from app.models import User
+from app.security import limiter
 
 router = APIRouter(prefix="/api/media", tags=["media"])
 
@@ -18,7 +19,9 @@ BUCKET = "media"
 
 
 @router.post("/upload")
+@limiter.limit("10/hour")
 async def upload_media(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
@@ -67,7 +70,9 @@ async def upload_media(
 
 
 @router.post("/upload-avatar")
+@limiter.limit("10/hour")
 async def upload_avatar(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
@@ -108,7 +113,9 @@ async def upload_avatar(
 
 
 @router.post("/upload-community-avatar")
+@limiter.limit("10/hour")
 async def upload_community_avatar(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):

@@ -127,6 +127,7 @@ class EmailVerification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=False)
     used = Column(Boolean, default=False, nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
 
 
 class Community(Base):

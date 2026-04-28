@@ -1,7 +1,7 @@
 from typing import List
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from app.auth import get_current_user
@@ -9,6 +9,7 @@ from app.config import settings
 from app.database import get_db
 from app.models import Block, Comment, Community, CommunityMember, Like, Post, User
 from app.schemas import CommentCreate, CommentOut, CommunityBrief, PostCreate, PostOut
+from app.security import limiter
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
@@ -100,7 +101,9 @@ def get_post(
 # ── Create post ───────────────────────────────────────────────────────────────
 
 @router.post("", response_model=PostOut, status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/hour")
 def create_post(
+    request: Request,
     body: PostCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -212,7 +215,9 @@ def get_comments(
 
 
 @router.post("/{post_id}/comments", response_model=CommentOut, status_code=status.HTTP_201_CREATED)
+@limiter.limit("30/hour")
 def create_comment(
+    request: Request,
     post_id: int,
     body: CommentCreate,
     db: Session = Depends(get_db),

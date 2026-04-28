@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
@@ -24,6 +24,7 @@ from app.schemas import (
     JoinRequestOut,
     PostOut,
 )
+from app.security import limiter
 
 router = APIRouter(prefix="/api/communities", tags=["communities"])
 
@@ -113,7 +114,9 @@ def my_joined_communities(
 # ── Create ────────────────────────────────────────────────────────────────────
 
 @router.post("", response_model=CommunityOut, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/day")
 def create_community(
+    request: Request,
     body: CommunityCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
