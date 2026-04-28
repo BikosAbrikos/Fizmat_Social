@@ -42,10 +42,14 @@ export default function Notifications() {
   }, []);
 
   const handleFriendAction = async (requestId, action) => {
-    await api.post(`/api/friends/requests/${requestId}/${action}`);
-    setRequests(prev =>
-      prev.map(r => r.id === requestId ? { ...r, status: action === "accept" ? "accepted" : "rejected" } : r)
-    );
+    try {
+      await api.post(`/api/friends/requests/${requestId}/${action}`);
+      setRequests(prev =>
+        prev.map(r => r.id === requestId ? { ...r, status: action === "accept" ? "accepted" : "rejected" } : r)
+      );
+    } catch (err) {
+      alert(err.response?.data?.detail || "Action failed");
+    }
   };
 
   const fmtTime = (iso) => {

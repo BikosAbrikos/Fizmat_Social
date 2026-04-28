@@ -247,6 +247,26 @@ class CommunityUpdate(BaseModel):
     avatar_url: Optional[str] = None
     is_private: Optional[bool] = None
 
+    @field_validator("name")
+    @classmethod
+    def name_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip()
+            if len(v) < 3:
+                raise ValueError("Community name must be at least 3 characters")
+            if len(v) > 50:
+                raise ValueError("Community name must be at most 50 characters")
+            if not re.match(r'^[a-zA-Z0-9 _-]+$', v):
+                raise ValueError("Name can only contain letters, numbers, spaces, hyphens, and underscores")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def description_max(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and len(v) > 300:
+            raise ValueError("Description must be at most 300 characters")
+        return v
+
 
 class CommunityBrief(BaseModel):
     id: int

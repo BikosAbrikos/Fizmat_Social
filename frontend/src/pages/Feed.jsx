@@ -13,14 +13,21 @@ const s = {
     fontFamily: "inherit",
   },
   empty: { textAlign: "center", color: "#65676b", marginTop: 40 },
+  error: { textAlign: "center", color: "#e41749", marginTop: 40, fontSize: 14 },
+  loading: { textAlign: "center", color: "#65676b", marginTop: 40 },
 };
 
 export default function Feed() {
   const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.get("/api/posts").then(({ data }) => setPosts(data));
+    api.get("/api/posts")
+      .then(({ data }) => setPosts(data))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
   }, []);
 
   const handleUpdate = (updated) => setPosts(prev => prev.map(p => p.id === updated.id ? updated : p));
@@ -32,12 +39,14 @@ export default function Feed() {
         ✏️ Create Post
       </button>
 
-      {posts.length === 0
-        ? <div style={s.empty}>No posts yet. Be the first!</div>
-        : posts.map(post => (
-            <PostCard key={post.id} post={post} onUpdate={handleUpdate} onDelete={handleDelete} />
-          ))
-      }
+      {loading && <div style={s.loading}>Loading...</div>}
+      {error && <div style={s.error}>Failed to load posts. Please refresh.</div>}
+      {!loading && !error && posts.length === 0 && (
+        <div style={s.empty}>No posts yet. Be the first!</div>
+      )}
+      {posts.map(post => (
+        <PostCard key={post.id} post={post} onUpdate={handleUpdate} onDelete={handleDelete} />
+      ))}
     </div>
   );
 }

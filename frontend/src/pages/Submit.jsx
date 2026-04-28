@@ -138,7 +138,13 @@ export default function Submit() {
     }
   };
 
+  // Revoke the object URL when filePreview changes or component unmounts
+  useEffect(() => {
+    return () => { if (filePreview) URL.revokeObjectURL(filePreview); };
+  }, [filePreview]);
+
   const removeFile = () => {
+    if (filePreview) URL.revokeObjectURL(filePreview);
     setFile(null); setFilePreview(null); setFileType(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };

@@ -118,24 +118,34 @@ export default function Chats() {
     if (!selected) return;
     lastIdRef.current = 0;
     setMessages([]);
-    api.get(`/api/chats/${selected.id}/messages`).then(({ data }) => {
-      setMessages(data);
-      if (data.length) lastIdRef.current = data[data.length - 1].id;
-    });
-  }, [selected]);
+    let active = true;
 
-  useEffect(() => {
-    if (!selected) return;
-    pollRef.current = setInterval(async () => {
+    const load = async () => {
       try {
-        const { data } = await api.get(`/api/chats/${selected.id}/messages?since_id=${lastIdRef.current}`);
-        if (data.length) {
-          lastIdRef.current = data[data.length - 1].id;
-          setMessages(prev => [...prev, ...data]);
-        }
-      } catch (_) {}
-    }, 2000);
-    return () => clearInterval(pollRef.current);
+        const { data } = await api.get(`/api/chats/${selected.id}/messages`);
+        if (!active) return;
+        setMessages(data);
+        if (data.length) lastIdRef.current = data[data.length - 1].id;
+      } catch {}
+
+      // Start polling only after initial load completes
+      if (!active) return;
+      pollRef.current = setInterval(async () => {
+        try {
+          const { data } = await api.get(`/api/chats/${selected.id}/messages?since_id=${lastIdRef.current}`);
+          if (active && data.length) {
+            lastIdRef.current = data[data.length - 1].id;
+            setMessages(prev => [...prev, ...data]);
+          }
+        } catch {}
+      }, 2000);
+    };
+
+    load();
+    return () => {
+      active = false;
+      clearInterval(pollRef.current);
+    };
   }, [selected]);
 
   useEffect(() => {

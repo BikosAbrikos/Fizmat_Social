@@ -1,10 +1,10 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import and_, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import DirectMessage, FriendRequest, User
+from app.models import Block, DirectMessage, FriendRequest, User
 from app.push_service import send_push
 from app.schemas import MessageCreate, MessageOut, UnreadChatOut
 
@@ -21,11 +21,21 @@ def _are_friends(db: Session, user1_id: int, user2_id: int) -> bool:
     ).first() is not None
 
 
+def _is_blocked(db: Session, user1_id: int, user2_id: int) -> bool:
+    return db.query(Block).filter(
+        or_(
+            and_(Block.blocker_id == user1_id, Block.blocked_id == user2_id),
+            and_(Block.blocker_id == user2_id, Block.blocked_id == user1_id),
+        )
+    ).first() is not None
+
+
 @router.get("/unread", response_model=list[UnreadChatOut])
 def get_unread(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Return one entry per sender who has unread messages for current user."""
     unread_msgs = (
         db.query(DirectMessage)
+        .options(joinedload(DirectMessage.sender))
         .filter(DirectMessage.receiver_id == current_user.id, DirectMessage.read.is_(False))
         .order_by(DirectMessage.created_at.desc())
         .all()
@@ -66,6 +76,8 @@ def get_messages(
 ):
     if not _are_friends(db, current_user.id, friend_id):
         raise HTTPException(status_code=403, detail="Not friends")
+    if _is_blocked(db, current_user.id, friend_id):
+        raise HTTPException(status_code=403, detail="Cannot message this user")
 
     # Mark all messages from friend to me as read
     db.query(DirectMessage).filter(
@@ -101,6 +113,8 @@ def send_message(
         raise HTTPException(status_code=400, detail="Cannot message yourself")
     if not _are_friends(db, current_user.id, friend_id):
         raise HTTPException(status_code=403, detail="You can only chat with friends")
+    if _is_blocked(db, current_user.id, friend_id):
+        raise HTTPException(status_code=403, detail="Cannot message this user")
     if not db.query(User).filter(User.id == friend_id).first():
         raise HTTPException(status_code=404, detail="User not found")
 

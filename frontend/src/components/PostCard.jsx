@@ -47,6 +47,8 @@ export default function PostCard({ post, onUpdate, onDelete }) {
     try {
       const { data } = await api.post(`/api/posts/${post.id}/like`);
       onUpdate(data);
+    } catch {
+      // no-op: like failed silently, state stays unchanged
     } finally {
       setLoading(false);
     }
@@ -54,8 +56,12 @@ export default function PostCard({ post, onUpdate, onDelete }) {
 
   const handleDelete = async () => {
     if (!window.confirm("Delete this post?")) return;
-    await api.delete(`/api/posts/${post.id}`);
-    onDelete(post.id);
+    try {
+      await api.delete(`/api/posts/${post.id}`);
+      onDelete(post.id);
+    } catch (err) {
+      alert(err.response?.data?.detail || "Failed to delete post");
+    }
   };
 
   const goToDetail = () => navigate(`/posts/${post.id}`);

@@ -111,6 +111,9 @@ async def lifespan(app: FastAPI):
             "ALTER TABLE posts ADD COLUMN IF NOT EXISTS community_id INTEGER REFERENCES communities(id) ON DELETE SET NULL"
         ))
         conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_likes_user_post ON likes (user_id, post_id)"
+        ))
+        conn.execute(text(
             "ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE"
         ))
         conn.execute(text(
