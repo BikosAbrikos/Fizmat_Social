@@ -137,6 +137,26 @@ async def lifespan(app: FastAPI):
         conn.execute(text(
             "ALTER TABLE email_verifications ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0"
         ))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS seen_posts (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                seen_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(user_id, post_id)
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_seen_posts_user ON seen_posts (user_id)"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS saved_posts (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                saved_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(user_id, post_id)
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_saved_posts_user ON saved_posts (user_id)"))
         conn.commit()
     yield
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
 import PostCard from "../components/PostCard";
@@ -7,19 +7,71 @@ import { useIsMobile } from "../hooks/useIsMobile";
 
 export default function Feed() {
   const [posts, setPosts] = useState([]);
+  const [sort, setSort] = useState("hot");
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
+  const [allSeen, setAllSeen] = useState(false);
   const [communities, setCommunities] = useState([]);
   const navigate = useNavigate();
   const { theme } = useTheme();
   const isMobile = useIsMobile();
+  const sentinelRef = useRef(null);
+
+  const fetchPosts = useCallback(async (currentSort) => {
+    try {
+      const { data } = await api.get(`/api/posts?sort=${currentSort}&limit=20`);
+      return data;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Initial load / sort change
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setAllSeen(false);
+    setPosts([]);
+    setError(false);
+
+    fetchPosts(sort).then(data => {
+      if (cancelled) return;
+      if (data === null) {
+        setError(true);
+      } else {
+        setPosts(data);
+        if (data.length === 0) setAllSeen(true);
+      }
+      setLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [sort, fetchPosts]);
+
+  // Infinite scroll — load more unseen posts when sentinel enters viewport
+  useEffect(() => {
+    if (allSeen || loading) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(async (entries) => {
+      if (!entries[0].isIntersecting || loadingMore) return;
+      setLoadingMore(true);
+      const data = await fetchPosts(sort);
+      if (data && data.length > 0) {
+        setPosts(prev => [...prev, ...data]);
+      } else {
+        setAllSeen(true);
+      }
+      setLoadingMore(false);
+    }, { threshold: 0.1 });
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [allSeen, loading, loadingMore, sort, fetchPosts]);
 
   useEffect(() => {
-    api.get("/api/posts")
-      .then(({ data }) => setPosts(data))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-
     api.get("/api/communities/me/joined")
       .then(({ data }) => setCommunities(data))
       .catch(() => {});
@@ -27,6 +79,41 @@ export default function Feed() {
 
   const handleUpdate = (updated) => setPosts(prev => prev.map(p => p.id === updated.id ? updated : p));
   const handleDelete = (id) => setPosts(prev => prev.filter(p => p.id !== id));
+
+  const handleReset = async () => {
+    await api.delete("/api/posts/seen").catch(() => {});
+    setSort(s => s); // force re-trigger by touching sort
+    setAllSeen(false);
+    setPosts([]);
+    setLoading(true);
+    const data = await fetchPosts(sort);
+    if (data) setPosts(data);
+    setLoading(false);
+    if (!data || data.length === 0) setAllSeen(true);
+  };
+
+  const sortTab = (value, label, icon) => (
+    <button
+      onClick={() => setSort(value)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "6px 14px",
+        borderRadius: 20,
+        border: "none",
+        background: sort === value ? theme.accent : theme.cardHover,
+        color: sort === value ? "#fff" : theme.textSub,
+        fontWeight: sort === value ? 700 : 500,
+        fontSize: 13,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        transition: "background 0.15s",
+      }}
+    >
+      <span>{icon}</span> {label}
+    </button>
+  );
 
   const mainFeed = (
     <div style={{ flex: 1, minWidth: 0 }}>
@@ -39,7 +126,7 @@ export default function Feed() {
         border: `1px solid ${theme.border}`,
         borderRadius: 4,
         padding: "8px 10px",
-        marginBottom: 16,
+        marginBottom: 10,
       }}>
         <div style={{
           width: 38,
@@ -70,6 +157,20 @@ export default function Feed() {
         </button>
       </div>
 
+      {/* Sort tabs */}
+      <div style={{
+        display: "flex",
+        gap: 8,
+        padding: "8px 10px",
+        background: theme.card,
+        border: `1px solid ${theme.border}`,
+        borderRadius: 4,
+        marginBottom: 10,
+      }}>
+        {sortTab("hot", "Hot", "🔥")}
+        {sortTab("new", "New", "✨")}
+      </div>
+
       {loading && (
         <div style={{ textAlign: "center", color: theme.textSub, padding: "40px 0", fontSize: 14 }}>
           Loading...
@@ -80,20 +181,60 @@ export default function Feed() {
           Failed to load posts. Please refresh.
         </div>
       )}
-      {!loading && !error && posts.length === 0 && (
-        <div style={{ textAlign: "center", color: theme.textSub, padding: "40px 0", fontSize: 14 }}>
-          No posts yet — be the first!
-        </div>
-      )}
+
       {posts.map(post => (
         <PostCard key={post.id} post={post} onUpdate={handleUpdate} onDelete={handleDelete} />
       ))}
+
+      {/* Infinite scroll sentinel */}
+      {!loading && !allSeen && <div ref={sentinelRef} style={{ height: 40 }} />}
+
+      {loadingMore && (
+        <div style={{ textAlign: "center", color: theme.textSub, padding: "20px 0", fontSize: 13 }}>
+          Loading more...
+        </div>
+      )}
+
+      {/* All caught up state */}
+      {allSeen && !loading && (
+        <div style={{
+          textAlign: "center",
+          padding: "32px 16px",
+          background: theme.card,
+          border: `1px solid ${theme.border}`,
+          borderRadius: 4,
+          marginTop: 8,
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>🎉</div>
+          <div style={{ fontWeight: 700, fontSize: 15, color: theme.text, marginBottom: 4 }}>
+            You're all caught up!
+          </div>
+          <div style={{ fontSize: 13, color: theme.textSub, marginBottom: 16 }}>
+            You've seen all posts. Reset to see them again or check back later.
+          </div>
+          <button
+            onClick={handleReset}
+            style={{
+              padding: "8px 20px",
+              background: theme.accent,
+              color: "#fff",
+              border: "none",
+              borderRadius: 20,
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Reset Feed
+          </button>
+        </div>
+      )}
     </div>
   );
 
   const sidebar = !isMobile && (
     <div style={{ width: 312, flexShrink: 0 }}>
-      {/* Create post card */}
       <div style={{
         background: theme.card,
         border: `1px solid ${theme.border}`,
@@ -152,7 +293,6 @@ export default function Feed() {
         </div>
       </div>
 
-      {/* My communities */}
       {communities.length > 0 && (
         <div style={{
           background: theme.card,

@@ -213,7 +213,8 @@ class PostOut(BaseModel):
     author: UserPublicOut
     like_count: int
     liked_by_me: bool
-    comment_count: int = 0  # default 0 for backward compatibility
+    comment_count: int = 0
+    saved_by_me: bool = False
     community: Optional["CommunityBrief"] = None
 
     model_config = {"from_attributes": True}

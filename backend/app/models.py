@@ -182,3 +182,21 @@ class Block(Base):
 
     blocker = relationship("User", foreign_keys=[blocker_id], back_populates="blocks_given")
     blocked_user = relationship("User", foreign_keys=[blocked_id], back_populates="blocks_received")
+
+
+class SeenPost(Base):
+    __tablename__ = "seen_posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
+    seen_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SavedPost(Base):
+    __tablename__ = "saved_posts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=False)
+    saved_at = Column(DateTime, default=datetime.utcnow)

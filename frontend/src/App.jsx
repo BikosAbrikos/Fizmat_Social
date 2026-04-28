@@ -14,6 +14,7 @@ import Notifications from "./pages/Notifications";
 import PostDetail from "./pages/PostDetail";
 import Profile from "./pages/Profile";
 import Register from "./pages/Register";
+import SavedPosts from "./pages/SavedPosts";
 import Submit from "./pages/Submit";
 import UserProfile from "./pages/UserProfile";
 
@@ -43,6 +44,7 @@ function AppRoutes() {
         <Route path="/communities" element={<PrivateRoute><Communities /></PrivateRoute>} />
         <Route path="/communities/create" element={<PrivateRoute><CreateCommunity /></PrivateRoute>} />
         <Route path="/communities/:id" element={<PrivateRoute><CommunityDetail /></PrivateRoute>} />
+        <Route path="/saved" element={<PrivateRoute><SavedPosts /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

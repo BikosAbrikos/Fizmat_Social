@@ -17,6 +17,7 @@ export default function PostCard({ post, onUpdate, onDelete }) {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const handleLike = async () => {
     if (loading) return;
@@ -28,6 +29,19 @@ export default function PostCard({ post, onUpdate, onDelete }) {
       // silent
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const { data } = await api.post(`/api/posts/${post.id}/save`);
+      onUpdate(data);
+    } catch {
+      // silent
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -204,6 +218,27 @@ export default function PostCard({ post, onUpdate, onDelete }) {
             onMouseLeave={e => e.currentTarget.style.background = "none"}
           >
             💬 {commentCount} {commentCount === 1 ? "Comment" : "Comments"}
+          </button>
+
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            title={post.saved_by_me ? "Unsave" : "Save"}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: saving ? "wait" : "pointer",
+              color: post.saved_by_me ? theme.accent : theme.textSub,
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "4px 8px",
+              borderRadius: 2,
+              fontFamily: "inherit",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = theme.cardHover}
+            onMouseLeave={e => e.currentTarget.style.background = "none"}
+          >
+            {post.saved_by_me ? "🔖 Saved" : "🔖 Save"}
           </button>
 
           {user?.id === post.author.id && (

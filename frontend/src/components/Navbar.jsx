@@ -8,6 +8,7 @@ import { useIsMobile } from "../hooks/useIsMobile";
 const TABS = [
   { path: "/",              icon: "🏠", label: "Feed" },
   { path: "/communities",   icon: "🏘️", label: "Groups" },
+  { path: "/saved",         icon: "🔖", label: "Saved" },
   { path: "/submit",        icon: "✏️", label: "Post" },
   { path: "/chats",         icon: "💬", label: "Chats" },
   { path: "/notifications", icon: "🔔", label: "Alerts" },
@@ -167,6 +168,7 @@ export default function Navbar() {
           {[
             { to: "/", label: "Feed" },
             { to: "/communities", label: "Communities" },
+            { to: "/saved", label: "Saved" },
             { to: "/chats", label: "Chats" },
           ].map(({ to, label }) => {
             const active = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);

@@ -2,12 +2,13 @@ from typing import List
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from app.auth import get_current_user
 from app.config import settings
 from app.database import get_db
-from app.models import Block, Comment, Community, CommunityMember, Like, Post, User
+from app.models import Block, Comment, Community, CommunityMember, Like, Post, SavedPost, SeenPost, User
 from app.schemas import CommentCreate, CommentOut, CommunityBrief, PostCreate, PostOut
 from app.security import limiter
 
@@ -15,7 +16,6 @@ router = APIRouter(prefix="/api/posts", tags=["posts"])
 
 
 def _load_post(db: Session, post_id: int) -> Post | None:
-    """Fetch a post with all relationships eagerly loaded to avoid N+1 queries."""
     return (
         db.query(Post)
         .options(
@@ -29,8 +29,9 @@ def _load_post(db: Session, post_id: int) -> Post | None:
     )
 
 
-def _serialize_post(post: Post, current_user_id: int) -> PostOut:
+def _serialize_post(post: Post, current_user_id: int, saved_ids: set[int] | None = None) -> PostOut:
     liked_by_me = any(like.user_id == current_user_id for like in post.likes)
+    saved_by_me = post.id in saved_ids if saved_ids is not None else False
     community_brief = None
     if getattr(post, "community", None):
         community_brief = CommunityBrief(
@@ -50,22 +51,36 @@ def _serialize_post(post: Post, current_user_id: int) -> PostOut:
         like_count=len(post.likes),
         liked_by_me=liked_by_me,
         comment_count=len(post.comments),
+        saved_by_me=saved_by_me,
         community=community_brief,
     )
+
+
+def _fetch_saved_ids(db: Session, user_id: int, post_ids: list[int]) -> set[int]:
+    if not post_ids:
+        return set()
+    return {
+        s.post_id
+        for s in db.query(SavedPost.post_id)
+            .filter(SavedPost.user_id == user_id, SavedPost.post_id.in_(post_ids))
+            .all()
+    }
 
 
 # ── Feed ─────────────────────────────────────────────────────────────────────
 
 @router.get("", response_model=List[PostOut])
 def get_feed(
-    skip: int = 0,
-    limit: int = 50,
+    sort: str = "hot",   # "hot" or "new"
+    limit: int = 20,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     blocked_ids = [b.blocked_id for b in db.query(Block).filter(Block.blocker_id == current_user.id).all()]
     blocking_ids = [b.blocker_id for b in db.query(Block).filter(Block.blocked_id == current_user.id).all()]
     excluded = set(blocked_ids + blocking_ids)
+
+    seen_subq = db.query(SeenPost.post_id).filter(SeenPost.user_id == current_user.id).subquery()
 
     query = (
         db.query(Post)
@@ -75,13 +90,74 @@ def get_feed(
             subqueryload(Post.comments),
             joinedload(Post.community),
         )
-        .order_by(Post.created_at.desc())
+        .filter(Post.id.notin_(seen_subq))
     )
     if excluded:
         query = query.filter(Post.author_id.notin_(excluded))
 
-    posts = query.offset(skip).limit(limit).all()
-    return [_serialize_post(p, current_user.id) for p in posts]
+    if sort == "new":
+        posts = query.order_by(Post.created_at.desc()).limit(limit).all()
+    else:
+        # Fetch candidate pool, score and rank in Python
+        candidates = query.order_by(Post.created_at.desc()).limit(200).all()
+        candidates.sort(key=lambda p: len(p.likes) + len(p.comments) * 2, reverse=True)
+        posts = candidates[:limit]
+
+    # Mark returned posts as seen (idempotent)
+    if posts:
+        db.execute(
+            text("INSERT INTO seen_posts (user_id, post_id) VALUES (:user_id, :post_id) ON CONFLICT DO NOTHING"),
+            [{"user_id": current_user.id, "post_id": p.id} for p in posts],
+        )
+        db.commit()
+
+    saved_ids = _fetch_saved_ids(db, current_user.id, [p.id for p in posts])
+    return [_serialize_post(p, current_user.id, saved_ids) for p in posts]
+
+
+# ── Saved posts ───────────────────────────────────────────────────────────────
+
+@router.get("/saved", response_model=List[PostOut])
+def get_saved_posts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    saved_records = (
+        db.query(SavedPost)
+        .filter(SavedPost.user_id == current_user.id)
+        .order_by(SavedPost.saved_at.desc())
+        .all()
+    )
+    post_ids = [s.post_id for s in saved_records]
+    if not post_ids:
+        return []
+
+    posts = (
+        db.query(Post)
+        .options(
+            joinedload(Post.author),
+            subqueryload(Post.likes),
+            subqueryload(Post.comments),
+            joinedload(Post.community),
+        )
+        .filter(Post.id.in_(post_ids))
+        .all()
+    )
+    post_map = {p.id: p for p in posts}
+    ordered = [post_map[pid] for pid in post_ids if pid in post_map]
+    saved_ids = set(post_ids)
+    return [_serialize_post(p, current_user.id, saved_ids) for p in ordered]
+
+
+# ── Reset seen history ────────────────────────────────────────────────────────
+
+@router.delete("/seen", status_code=status.HTTP_204_NO_CONTENT)
+def reset_seen(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    db.query(SeenPost).filter(SeenPost.user_id == current_user.id).delete()
+    db.commit()
 
 
 # ── Single post ───────────────────────────────────────────────────────────────
@@ -95,7 +171,8 @@ def get_post(
     post = _load_post(db, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    return _serialize_post(post, current_user.id)
+    saved_ids = _fetch_saved_ids(db, current_user.id, [post_id])
+    return _serialize_post(post, current_user.id, saved_ids)
 
 
 # ── Create post ───────────────────────────────────────────────────────────────
@@ -132,9 +209,33 @@ def create_post(
     )
     db.add(post)
     db.commit()
-    # Re-fetch with eager loading so relationships are available for serialization
     post = _load_post(db, post.id)
     return _serialize_post(post, current_user.id)
+
+
+# ── Save toggle ───────────────────────────────────────────────────────────────
+
+@router.post("/{post_id}/save", response_model=PostOut)
+def toggle_save(
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    post = _load_post(db, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    existing = db.query(SavedPost).filter(SavedPost.post_id == post_id, SavedPost.user_id == current_user.id).first()
+    if existing:
+        db.delete(existing)
+        is_saved = False
+    else:
+        db.add(SavedPost(post_id=post_id, user_id=current_user.id))
+        is_saved = True
+    db.commit()
+
+    saved_ids = {post_id} if is_saved else set()
+    return _serialize_post(post, current_user.id, saved_ids)
 
 
 # ── Like toggle ───────────────────────────────────────────────────────────────
@@ -155,9 +256,9 @@ def toggle_like(
     else:
         db.add(Like(post_id=post_id, user_id=current_user.id))
     db.commit()
-    # Re-fetch with eager loading so updated likes/comments counts are accurate
     post = _load_post(db, post_id)
-    return _serialize_post(post, current_user.id)
+    saved_ids = _fetch_saved_ids(db, current_user.id, [post_id])
+    return _serialize_post(post, current_user.id, saved_ids)
 
 
 # ── Delete post ───────────────────────────────────────────────────────────────
@@ -172,11 +273,10 @@ def delete_post(
     if not post:
         raise HTTPException(status_code=404, detail="Post not found or not yours")
 
-    media_url = post.media_url  # save before delete
+    media_url = post.media_url
     db.delete(post)
     db.commit()
 
-    # Best-effort: remove file from Supabase Storage
     if media_url and settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY:
         try:
             base = settings.SUPABASE_URL.rstrip("/")
@@ -201,7 +301,7 @@ def delete_post(
 def get_comments(
     post_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),  # noqa: ensures auth
+    current_user: User = Depends(get_current_user),
 ):
     if not db.query(Post).filter(Post.id == post_id).first():
         raise HTTPException(status_code=404, detail="Post not found")
@@ -240,7 +340,6 @@ def create_comment(
     )
     db.add(comment)
     db.commit()
-    # Re-fetch with author so CommentOut serializes correctly
     comment = (
         db.query(Comment)
         .options(joinedload(Comment.author))
