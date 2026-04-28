@@ -1,51 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
+import { useTheme } from "../context/ThemeContext";
 import { useIsMobile } from "../hooks/useIsMobile";
 
-const s = {
-  page: { maxWidth: 560, margin: "0 auto", padding: "32px 16px" },
-  heading: { fontSize: 22, fontWeight: 700, marginBottom: 24, color: "#1c1e21" },
-  card: {
-    background: "#fff", borderRadius: 8, padding: "28px 24px",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-  },
-  field: { marginBottom: 20 },
-  label: { display: "block", fontSize: 14, fontWeight: 600, marginBottom: 6, color: "#1c1e21" },
-  input: {
-    width: "100%", padding: "10px 12px", border: "1px solid #ccd0d5",
-    borderRadius: 6, fontSize: 15, fontFamily: "inherit", outline: "none",
-    boxSizing: "border-box",
-  },
-  textarea: {
-    width: "100%", padding: "10px 12px", border: "1px solid #ccd0d5",
-    borderRadius: 6, fontSize: 14, fontFamily: "inherit", outline: "none",
-    resize: "vertical", minHeight: 100, boxSizing: "border-box",
-  },
-  charCount: { fontSize: 12, color: "#65676b", textAlign: "right", marginTop: 3 },
-  toggleWrap: { display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1.5px solid #1877f2", width: "fit-content" },
-  toggleBtn: (active) => ({
-    padding: "9px 24px", border: "none", cursor: "pointer", fontWeight: 700,
-    fontSize: 14, fontFamily: "inherit",
-    background: active ? "#1877f2" : "#fff",
-    color: active ? "#fff" : "#1877f2",
-    transition: "background 0.15s, color 0.15s",
-  }),
-  hint: { fontSize: 12, color: "#65676b", marginTop: 6 },
-  submitBtn: {
-    width: "100%", padding: "12px 0", background: "#1877f2", color: "#fff",
-    border: "none", borderRadius: 6, fontSize: 15, fontWeight: 700,
-    cursor: "pointer", marginTop: 8,
-  },
-  submitBtnDisabled: { opacity: 0.55, cursor: "not-allowed" },
-  cancelBtn: {
-    width: "100%", padding: "10px 0", background: "none", color: "#65676b",
-    border: "none", fontSize: 14, cursor: "pointer", marginTop: 6, fontFamily: "inherit",
-  },
-  error: { color: "#e41749", fontSize: 13, marginBottom: 14 },
-};
-
 export default function CreateCommunity() {
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [name, setName] = useState("");
@@ -57,17 +17,9 @@ export default function CreateCommunity() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const trimmedName = name.trim();
-    if (trimmedName.length < 3) {
-      setError("Community name must be at least 3 characters.");
-      return;
-    }
-    if (trimmedName.length > 50) {
-      setError("Community name must be at most 50 characters.");
-      return;
-    }
-
-    setError("");
-    setSubmitting(true);
+    if (trimmedName.length < 3) { setError("Community name must be at least 3 characters."); return; }
+    if (trimmedName.length > 50) { setError("Community name must be at most 50 characters."); return; }
+    setError(""); setSubmitting(true);
     try {
       const { data } = await api.post("/api/communities", {
         name: trimmedName,
@@ -77,7 +29,7 @@ export default function CreateCommunity() {
       navigate(`/communities/${data.id}`);
     } catch (err) {
       const detail = err.response?.data?.detail;
-      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(", ") : detail || "Failed to create community");
+      setError(Array.isArray(detail) ? detail.map(d => d.msg).join(", ") : detail || "Failed to create community");
     } finally {
       setSubmitting(false);
     }
@@ -85,72 +37,112 @@ export default function CreateCommunity() {
 
   const canSubmit = name.trim().length >= 3 && !submitting;
 
-  return (
-    <div style={{ ...s.page, paddingBottom: isMobile ? 96 : 32 }}>
-      <div style={s.heading}>Create a Community</div>
-      <div style={s.card}>
-        <form onSubmit={handleSubmit}>
-          {error && <div style={s.error}>{error}</div>}
+  const input = {
+    width: "100%", padding: "9px 12px",
+    border: `1px solid ${theme.inputBorder}`,
+    borderRadius: 4, fontSize: 14, fontFamily: "inherit",
+    outline: "none", background: theme.input, color: theme.text,
+    boxSizing: "border-box",
+  };
 
-          <div style={s.field}>
-            <label style={s.label}>Community Name *</label>
+  return (
+    <div style={{ maxWidth: 520, margin: "0 auto", padding: isMobile ? "16px 12px 80px" : "24px 20px" }}>
+      <div style={{ fontSize: 20, fontWeight: 700, color: theme.text, marginBottom: 16 }}>Create a Community</div>
+
+      <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 4, padding: "20px 20px" }}>
+        <form onSubmit={handleSubmit}>
+          {error && (
+            <div style={{ background: "rgba(255,88,91,0.1)", border: `1px solid ${theme.danger}`, borderRadius: 4, padding: "8px 12px", color: theme.danger, fontSize: 13, marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: theme.textSub, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
+              Community Name *
+            </label>
             <input
-              style={s.input}
+              style={input}
               type="text"
               placeholder="e.g. Physics Club"
               value={name}
-              onChange={(e) => setName(e.target.value.slice(0, 50))}
+              onChange={e => setName(e.target.value.slice(0, 50))}
               autoFocus
-              maxLength={50}
+              onFocus={e => e.currentTarget.style.borderColor = theme.accent}
+              onBlur={e => e.currentTarget.style.borderColor = theme.inputBorder}
             />
-            <div style={s.charCount}>{name.length}/50</div>
+            <div style={{ fontSize: 11, color: theme.textSub, textAlign: "right", marginTop: 2 }}>{name.length}/50</div>
           </div>
 
-          <div style={s.field}>
-            <label style={s.label}>Description (optional)</label>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: theme.textSub, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
+              Description (optional)
+            </label>
             <textarea
-              style={s.textarea}
+              style={{ ...input, resize: "vertical", minHeight: 90 }}
               placeholder="What is this community about?"
               value={description}
-              onChange={(e) => setDescription(e.target.value.slice(0, 300))}
-              maxLength={300}
+              onChange={e => setDescription(e.target.value.slice(0, 300))}
+              onFocus={e => e.currentTarget.style.borderColor = theme.accent}
+              onBlur={e => e.currentTarget.style.borderColor = theme.inputBorder}
             />
-            <div style={s.charCount}>{description.length}/300</div>
+            <div style={{ fontSize: 11, color: theme.textSub, textAlign: "right", marginTop: 2 }}>{description.length}/300</div>
           </div>
 
-          <div style={s.field}>
-            <label style={s.label}>Privacy</label>
-            <div style={s.toggleWrap}>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: theme.textSub, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>
+              Privacy
+            </label>
+            <div style={{ display: "flex", borderRadius: 20, overflow: "hidden", border: `1.5px solid ${theme.accent}`, width: "fit-content" }}>
               <button
                 type="button"
-                style={s.toggleBtn(!isPrivate)}
                 onClick={() => setIsPrivate(false)}
+                style={{
+                  padding: "7px 20px", border: "none", cursor: "pointer", fontWeight: 700,
+                  fontSize: 13, fontFamily: "inherit",
+                  background: !isPrivate ? theme.accent : "none",
+                  color: !isPrivate ? "#fff" : theme.accent,
+                }}
               >
                 🌐 Public
               </button>
               <button
                 type="button"
-                style={s.toggleBtn(isPrivate)}
                 onClick={() => setIsPrivate(true)}
+                style={{
+                  padding: "7px 20px", border: "none", cursor: "pointer", fontWeight: 700,
+                  fontSize: 13, fontFamily: "inherit",
+                  background: isPrivate ? theme.accent : "none",
+                  color: isPrivate ? "#fff" : theme.accent,
+                }}
               >
                 🔒 Private
               </button>
             </div>
-            <div style={s.hint}>
-              {isPrivate
-                ? "Private: only approved members can see posts and join."
-                : "Public: anyone can join and see posts."}
+            <div style={{ fontSize: 12, color: theme.textSub, marginTop: 6 }}>
+              {isPrivate ? "Private: only approved members can see posts and join." : "Public: anyone can join and see posts."}
             </div>
           </div>
 
           <button
             type="submit"
-            style={{ ...s.submitBtn, ...(canSubmit ? {} : s.submitBtnDisabled) }}
             disabled={!canSubmit}
+            style={{
+              width: "100%", padding: "10px 0",
+              background: canSubmit ? theme.accent : theme.border,
+              color: canSubmit ? "#fff" : theme.textSub,
+              border: "none", borderRadius: 20, fontSize: 14, fontWeight: 700,
+              cursor: canSubmit ? "pointer" : "not-allowed", fontFamily: "inherit",
+            }}
           >
-            {submitting ? "Creating..." : "Create Community"}
+            {submitting ? "Creating…" : "Create Community"}
           </button>
-          <button type="button" style={s.cancelBtn} onClick={() => navigate("/communities")}>
+
+          <button
+            type="button"
+            onClick={() => navigate("/communities")}
+            style={{ width: "100%", padding: "8px 0", background: "none", color: theme.textSub, border: "none", fontSize: 13, cursor: "pointer", marginTop: 8, fontFamily: "inherit" }}
+          >
             Cancel
           </button>
         </form>
