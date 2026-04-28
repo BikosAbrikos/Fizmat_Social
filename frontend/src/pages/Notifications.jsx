@@ -1,31 +1,27 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
+import { useTheme } from "../context/ThemeContext";
 
-const s = {
-  page: { maxWidth: 520, margin: "0 auto", padding: "32px 16px" },
-  title: { fontSize: 22, fontWeight: 700, marginBottom: 24 },
-  sectionTitle: { fontSize: 13, fontWeight: 700, color: "#65676b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10, marginTop: 24 },
-  empty: { color: "#65676b", fontSize: 14, textAlign: "center", padding: "20px 0" },
-  card: { background: "#fff", borderRadius: 8, padding: 14, marginBottom: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.08)", display: "flex", alignItems: "center", gap: 12 },
-  avatarPlaceholder: { width: 44, height: 44, borderRadius: "50%", background: "#1877f2", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 18, flexShrink: 0 },
-  avatar: { width: 44, height: 44, borderRadius: "50%", objectFit: "cover", flexShrink: 0 },
-  info: { flex: 1, minWidth: 0 },
-  name: { fontWeight: 600, fontSize: 14, cursor: "pointer" },
-  sub: { fontSize: 13, color: "#65676b", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  badge: { background: "#e41749", color: "#fff", borderRadius: 12, fontSize: 11, fontWeight: 700, padding: "2px 7px", flexShrink: 0 },
-  actions: { display: "flex", gap: 8, flexShrink: 0 },
-  acceptBtn: { padding: "6px 14px", background: "#1877f2", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: "pointer" },
-  rejectBtn: { padding: "6px 14px", background: "#e4e6eb", color: "#1c1e21", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: "pointer" },
-  replyBtn: { padding: "6px 14px", background: "#1877f2", color: "#fff", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: "pointer" },
-  done: { fontSize: 13, color: "#65676b", fontStyle: "italic" },
-};
+function timeAgo(iso) {
+  const secs = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (secs < 60) return `${secs}s ago`;
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+  return new Date(iso).toLocaleDateString([], { day: "numeric", month: "short" });
+}
 
-const Avatar = ({ user }) => user?.avatar_url
-  ? <img src={user.avatar_url} alt="" style={s.avatar} />
-  : <div style={s.avatarPlaceholder}>{user?.name?.charAt(0).toUpperCase()}</div>;
+function Avatar({ user, theme }) {
+  if (user?.avatar_url) return <img src={user.avatar_url} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />;
+  return (
+    <div style={{ width: 40, height: 40, borderRadius: "50%", background: theme.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
+      {user?.name?.charAt(0).toUpperCase()}
+    </div>
+  );
+}
 
 export default function Notifications() {
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [unreadChats, setUnreadChats] = useState([]);
@@ -52,73 +48,108 @@ export default function Notifications() {
     }
   };
 
-  const fmtTime = (iso) => {
-    const d = new Date(iso);
-    const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
-    return isToday
-      ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      : d.toLocaleDateString([], { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
-
-  if (loading) return <div style={s.page}><p style={{ color: "#65676b" }}>Loading...</p></div>;
+  if (loading) return <div style={{ textAlign: "center", color: theme.textSub, padding: "60px 0" }}>Loading…</div>;
 
   const hasAnything = requests.length > 0 || unreadChats.length > 0;
 
+  const card = {
+    background: theme.card,
+    border: `1px solid ${theme.border}`,
+    borderRadius: 4,
+    padding: "10px 14px",
+    marginBottom: 8,
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  };
+
   return (
-    <div style={s.page}>
-      <h1 style={s.title}>Notifications</h1>
+    <div style={{ maxWidth: 520, margin: "0 auto", padding: "20px 14px 80px" }}>
+      <div style={{ fontSize: 20, fontWeight: 700, color: theme.text, marginBottom: 20 }}>Notifications</div>
 
-      {!hasAnything && <p style={s.empty}>No new notifications</p>}
+      {!hasAnything && (
+        <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 4, padding: 32, textAlign: "center", color: theme.textSub, fontSize: 14 }}>
+          No new notifications
+        </div>
+      )}
 
-      {/* ── Unread messages ── */}
+      {/* Unread messages */}
       {unreadChats.length > 0 && (
         <>
-          <div style={s.sectionTitle}>💬 New Messages</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: theme.textSub, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>
+            New Messages
+          </div>
           {unreadChats.map(item => (
-            <div key={item.sender.id} style={s.card}>
-              <Avatar user={item.sender} />
-              <div style={s.info}>
-                <div style={s.name} onClick={() => navigate(`/users/${item.sender.id}`)}>
-                  {item.sender.name}
+            <div key={item.sender.id} style={card}>
+              <Avatar user={item.sender} theme={theme} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{ fontWeight: 700, fontSize: 14, color: theme.text, cursor: "pointer" }}
+                  onClick={() => navigate(`/users/${item.sender.id}`)}
+                >
+                  u/{item.sender.username || item.sender.name}
                 </div>
-                <div style={s.sub}>{item.last_message}</div>
-                <div style={{ fontSize: 11, color: "#65676b", marginTop: 2 }}>{fmtTime(item.last_at)}</div>
+                <div style={{ fontSize: 13, color: theme.textSub, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {item.last_message}
+                </div>
+                <div style={{ fontSize: 11, color: theme.textSub, marginTop: 2 }}>{timeAgo(item.last_at)}</div>
               </div>
-              {item.count > 1 && <div style={s.badge}>{item.count}</div>}
-              <div style={s.actions}>
-                <button style={s.replyBtn} onClick={() => navigate("/chats")}>Reply</button>
-              </div>
+              {item.count > 1 && (
+                <div style={{ background: theme.danger, color: "#fff", borderRadius: 12, fontSize: 11, fontWeight: 700, padding: "2px 7px", flexShrink: 0 }}>
+                  {item.count}
+                </div>
+              )}
+              <button
+                onClick={() => navigate("/chats")}
+                style={{ padding: "5px 14px", background: theme.accent, color: "#fff", border: "none", borderRadius: 20, fontWeight: 700, fontSize: 12, cursor: "pointer", flexShrink: 0, fontFamily: "inherit" }}
+              >
+                Reply
+              </button>
             </div>
           ))}
         </>
       )}
 
-      {/* ── Friend requests ── */}
+      {/* Friend requests */}
       {requests.length > 0 && (
         <>
-          <div style={s.sectionTitle}>👤 Friend Requests</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: theme.textSub, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8, marginTop: unreadChats.length > 0 ? 16 : 0 }}>
+            Friend Requests
+          </div>
           {requests.map(req => {
             const isPending = req.status === "pending";
             return (
-              <div key={req.id} style={s.card}>
-                <Avatar user={req.sender} />
-                <div style={s.info}>
-                  <div style={s.name} onClick={() => navigate(`/users/${req.sender.id}`)}>
-                    {req.sender.name}
+              <div key={req.id} style={card}>
+                <Avatar user={req.sender} theme={theme} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{ fontWeight: 700, fontSize: 14, color: theme.text, cursor: "pointer" }}
+                    onClick={() => navigate(`/users/${req.sender.id}`)}
+                  >
+                    u/{req.sender.username || req.sender.name}
                   </div>
-                  <div style={s.sub}>wants to be your friend</div>
+                  <div style={{ fontSize: 12, color: theme.textSub, marginTop: 1 }}>wants to be your friend</div>
                 </div>
-                <div style={s.actions}>
-                  {isPending ? (
-                    <>
-                      <button style={s.acceptBtn} onClick={() => handleFriendAction(req.id, "accept")}>Accept</button>
-                      <button style={s.rejectBtn} onClick={() => handleFriendAction(req.id, "reject")}>Reject</button>
-                    </>
-                  ) : (
-                    <span style={s.done}>{req.status === "accepted" ? "Accepted ✓" : "Rejected"}</span>
-                  )}
-                </div>
+                {isPending ? (
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <button
+                      onClick={() => handleFriendAction(req.id, "accept")}
+                      style={{ padding: "5px 12px", background: theme.accent, color: "#fff", border: "none", borderRadius: 20, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleFriendAction(req.id, "reject")}
+                      style={{ padding: "5px 12px", background: theme.cardHover, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 20, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 12, color: theme.textSub, fontStyle: "italic", flexShrink: 0 }}>
+                    {req.status === "accepted" ? "Accepted ✓" : "Rejected"}
+                  </span>
+                )}
               </div>
             );
           })}

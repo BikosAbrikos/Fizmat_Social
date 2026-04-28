@@ -3,46 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import api from "../api/client";
 import PostCard from "../components/PostCard";
 import { useAuth } from "../context/AuthContext";
-
-const s = {
-  page: { maxWidth: 600, margin: "0 auto", padding: "32px 16px" },
-  card: { background: "#fff", borderRadius: 8, padding: 28, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", marginBottom: 16 },
-  avatarWrap: { display: "flex", justifyContent: "center", marginBottom: 16 },
-  avatar: { width: 80, height: 80, borderRadius: "50%", objectFit: "cover" },
-  avatarPlaceholder: { width: 80, height: 80, borderRadius: "50%", background: "#1877f2", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 32 },
-  name: { fontSize: 22, fontWeight: 700, textAlign: "center", marginBottom: 4 },
-  username: { fontSize: 14, color: "#65676b", textAlign: "center", marginBottom: 16 },
-  bio: { fontSize: 14, color: "#1c1e21", lineHeight: 1.6, fontStyle: "italic", textAlign: "center", margin: "12px 0" },
-  divider: { borderTop: "1px solid #e4e6eb", margin: "14px 0" },
-  row: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
-  rowLabel: { fontSize: 13, fontWeight: 600, color: "#65676b", minWidth: 110 },
-  rowValue: { fontSize: 14, color: "#1c1e21", textAlign: "right", flex: 1 },
-
-  editBtn: { display: "block", width: "100%", padding: 10, background: "#e7f3ff", color: "#1877f2", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 8 },
-  friendBtn: { display: "block", width: "100%", padding: 10, background: "#1877f2", color: "#fff", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 12 },
-  pendingBtn: { display: "block", width: "100%", padding: 10, background: "#e4e6eb", color: "#65676b", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 600, marginTop: 12, textAlign: "center" },
-  friendsLabel: { display: "block", width: "100%", padding: 10, background: "#e7f3ff", color: "#1877f2", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 700, textAlign: "center", marginTop: 12 },
-  acceptRow: { display: "flex", gap: 8, marginTop: 12 },
-  acceptBtn: { flex: 1, padding: 10, background: "#1877f2", color: "#fff", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 700, cursor: "pointer" },
-  rejectBtn: { flex: 1, padding: 10, background: "#e4e6eb", color: "#1c1e21", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: "pointer" },
-  blockBtn: { display: "block", width: "100%", padding: "8px 10px", background: "none", color: "#e41749", border: "1px solid #e41749", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: "pointer", marginTop: 8 },
-  unblockBtn: { display: "block", width: "100%", padding: "8px 10px", background: "#fff0f3", color: "#e41749", border: "1px solid #e41749", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: "pointer", marginTop: 8 },
-
-  sectionTitle: { fontSize: 16, fontWeight: 700, color: "#1c1e21", marginBottom: 12 },
-  emptyNote: { color: "#65676b", fontSize: 14, textAlign: "center", padding: "16px 0" },
-
-  friendsGrid: { display: "flex", flexWrap: "wrap", gap: 12 },
-  friendChip: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer", width: 64 },
-  friendAvatar: { width: 48, height: 48, borderRadius: "50%", objectFit: "cover" },
-  friendAvatarPlaceholder: { width: 48, height: 48, borderRadius: "50%", background: "#1877f2", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 18 },
-  friendName: { fontSize: 11, color: "#1c1e21", textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: 64 },
-
-  loading: { textAlign: "center", color: "#65676b", padding: "60px 0" },
-};
+import { useTheme } from "../context/ThemeContext";
 
 export default function UserProfile() {
   const { id } = useParams();
   const { user: me } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState(null);
@@ -54,7 +20,6 @@ export default function UserProfile() {
   const [friendsLoading, setFriendsLoading] = useState(true);
 
   useEffect(() => {
-    const userId = parseInt(id);
     Promise.all([
       api.get(`/api/users/${id}`),
       api.get(`/api/friends/status/${id}`).catch(() => ({ data: { status: "none" } })),
@@ -75,24 +40,20 @@ export default function UserProfile() {
     await api.post(`/api/friends/request/${id}`);
     setFriendStatus({ status: "pending_sent" });
   };
-
   const handleAccept = async () => {
     await api.post(`/api/friends/requests/${friendStatus.request_id}/accept`);
     setFriendStatus({ status: "friends" });
   };
-
   const handleReject = async () => {
     await api.post(`/api/friends/requests/${friendStatus.request_id}/reject`);
     setFriendStatus({ status: "none" });
   };
-
   const handleBlock = async () => {
-    if (!window.confirm("Block this user? They won't be able to send you friend requests and their posts will be hidden.")) return;
+    if (!window.confirm("Block this user? Their posts will be hidden and they can't send you friend requests.")) return;
     await api.post(`/api/blocks/${id}`);
     setIsBlocked(true);
     setFriendStatus({ status: "none" });
   };
-
   const handleUnblock = async () => {
     await api.delete(`/api/blocks/${id}`);
     setIsBlocked(false);
@@ -102,130 +63,131 @@ export default function UserProfile() {
   const handlePostUpdate = (updated) => setPosts(prev => prev.map(p => p.id === updated.id ? updated : p));
   const handlePostDelete = (postId) => setPosts(prev => prev.filter(p => p.id !== postId));
 
-  if (!profile) return <div style={s.loading}>Loading...</div>;
+  if (!profile) return <div style={{ textAlign: "center", color: theme.textSub, padding: "60px 0" }}>Loading…</div>;
 
   const initials = profile.name.charAt(0).toUpperCase();
   const isMe = me?.id === profile.id;
 
+  const btn = (label, onClick, variant = "primary") => (
+    <button
+      onClick={onClick}
+      style={{
+        width: "100%", padding: "8px 0", borderRadius: 20, border: "none",
+        fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit",
+        marginTop: 10,
+        ...(variant === "primary" ? { background: theme.accent, color: "#fff" } :
+          variant === "outline" ? { background: "none", color: theme.accent, border: `1px solid ${theme.accent}` } :
+          variant === "muted" ? { background: theme.cardHover, color: theme.textSub, cursor: "default" } :
+          variant === "danger" ? { background: "none", color: theme.danger, border: `1px solid ${theme.danger}` } :
+          { background: theme.cardHover, color: theme.textSub }),
+      }}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <div style={s.page}>
-      {/* ── Profile card ── */}
-      <div style={s.card}>
-        <div style={s.avatarWrap}>
-          {profile.avatar_url
-            ? <img src={profile.avatar_url} alt="" style={s.avatar} />
-            : <div style={s.avatarPlaceholder}>{initials}</div>
-          }
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 12px 80px" }}>
+      {/* Profile card */}
+      <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 4, overflow: "hidden", marginBottom: 12 }}>
+        {/* Banner */}
+        <div style={{ height: 80, background: `linear-gradient(135deg, ${theme.accent}, #ff6534)` }} />
+        <div style={{ padding: "0 20px 20px" }}>
+          {/* Avatar */}
+          <div style={{ marginTop: -36, marginBottom: 10 }}>
+            {profile.avatar_url
+              ? <img src={profile.avatar_url} alt="" style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: `3px solid ${theme.card}` }} />
+              : <div style={{ width: 72, height: 72, borderRadius: "50%", background: theme.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 28, border: `3px solid ${theme.card}` }}>{initials}</div>
+            }
+          </div>
+
+          <div style={{ fontSize: 20, fontWeight: 700, color: theme.text, marginBottom: 2 }}>{profile.name}</div>
+          {profile.username && <div style={{ fontSize: 14, color: theme.textSub, marginBottom: 8 }}>u/{profile.username}</div>}
+          {profile.bio && <p style={{ fontSize: 14, color: theme.text, lineHeight: 1.5, marginBottom: 8, fontStyle: "italic" }}>"{profile.bio}"</p>}
+
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 13, color: theme.textSub, marginBottom: 8 }}>
+            {profile.grade && <span>📚 Grade {profile.grade}</span>}
+            {profile.age && <span>🎂 Age {profile.age}</span>}
+            {profile.future_major && <span>🎯 {profile.future_major}</span>}
+          </div>
+
+          {isMe && btn("Edit my profile", () => navigate("/profile"), "outline")}
+
+          {!isMe && (
+            <>
+              {isBlocked ? (
+                btn("Unblock user", handleUnblock, "danger")
+              ) : (
+                <>
+                  {friendStatus?.status === "none" && btn("Add Friend", sendRequest, "primary")}
+                  {friendStatus?.status === "pending_sent" && btn("Request Sent", null, "muted")}
+                  {friendStatus?.status === "friends" && btn("Friends ✓", null, "muted")}
+                  {friendStatus?.status === "pending_received" && (
+                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                      <button onClick={handleAccept} style={{ flex: 1, padding: "8px 0", background: theme.accent, color: "#fff", border: "none", borderRadius: 20, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Accept</button>
+                      <button onClick={handleReject} style={{ flex: 1, padding: "8px 0", background: theme.cardHover, color: theme.text, border: "none", borderRadius: 20, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Reject</button>
+                    </div>
+                  )}
+                  <button
+                    onClick={handleBlock}
+                    style={{ width: "100%", marginTop: 8, padding: "6px 0", background: "none", color: theme.danger, border: `1px solid ${theme.border}`, borderRadius: 20, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    Block user
+                  </button>
+                </>
+              )}
+            </>
+          )}
         </div>
-
-        <div style={s.name}>{profile.name}</div>
-        {profile.username && <div style={s.username}>@{profile.username}</div>}
-        {profile.bio && <p style={s.bio}>"{profile.bio}"</p>}
-
-        <div style={s.divider} />
-
-        {profile.age && (
-          <div style={s.row}>
-            <span style={s.rowLabel}>Age</span>
-            <span style={s.rowValue}>{profile.age}</span>
-          </div>
-        )}
-        {profile.grade && (
-          <div style={s.row}>
-            <span style={s.rowLabel}>Grade</span>
-            <span style={s.rowValue}>{profile.grade}</span>
-          </div>
-        )}
-        {profile.future_major && (
-          <div style={s.row}>
-            <span style={s.rowLabel}>Future major</span>
-            <span style={s.rowValue}>{profile.future_major}</span>
-          </div>
-        )}
-
-        {isMe && (
-          <button style={s.editBtn} onClick={() => navigate("/profile")}>
-            Edit my profile
-          </button>
-        )}
-
-        {!isMe && (
-          <>
-            {isBlocked ? (
-              <button style={s.unblockBtn} onClick={handleUnblock}>Unblock user</button>
-            ) : (
-              <>
-                {friendStatus?.status === "none" && (
-                  <button style={s.friendBtn} onClick={sendRequest}>Add Friend</button>
-                )}
-                {friendStatus?.status === "pending_sent" && (
-                  <div style={s.pendingBtn}>Request Sent</div>
-                )}
-                {friendStatus?.status === "friends" && (
-                  <div style={s.friendsLabel}>Friends</div>
-                )}
-                {friendStatus?.status === "pending_received" && (
-                  <div style={s.acceptRow}>
-                    <button style={s.acceptBtn} onClick={handleAccept}>Accept Request</button>
-                    <button style={s.rejectBtn} onClick={handleReject}>Reject</button>
-                  </div>
-                )}
-                <button style={s.blockBtn} onClick={handleBlock}>Block user</button>
-              </>
-            )}
-          </>
-        )}
       </div>
 
-      {/* ── Friends ── */}
-      <div style={s.card}>
-        <div style={s.sectionTitle}>
-          Friends {!friendsLoading && `(${friends.length})`}
+      {/* Friends */}
+      <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 4, marginBottom: 12, overflow: "hidden" }}>
+        <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme.border}` }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: theme.textSub, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            Friends {!friendsLoading && `(${friends.length})`}
+          </span>
         </div>
-        {friendsLoading ? (
-          <div style={s.emptyNote}>Loading...</div>
-        ) : friends.length === 0 ? (
-          <div style={s.emptyNote}>No friends yet.</div>
-        ) : (
-          <div style={s.friendsGrid}>
-            {friends.map(f => {
-              const fi = f.name.charAt(0).toUpperCase();
-              return (
-                <div key={f.id} style={s.friendChip} onClick={() => navigate(`/users/${f.id}`)}>
+        <div style={{ padding: "12px 16px" }}>
+          {friendsLoading ? (
+            <div style={{ fontSize: 13, color: theme.textSub }}>Loading…</div>
+          ) : friends.length === 0 ? (
+            <div style={{ fontSize: 13, color: theme.textSub }}>No friends yet.</div>
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+              {friends.map(f => (
+                <div
+                  key={f.id}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", width: 60 }}
+                  onClick={() => navigate(`/users/${f.id}`)}
+                >
                   {f.avatar_url
-                    ? <img src={f.avatar_url} alt="" style={s.friendAvatar} />
-                    : <div style={s.friendAvatarPlaceholder}>{fi}</div>
+                    ? <img src={f.avatar_url} alt="" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover" }} />
+                    : <div style={{ width: 44, height: 44, borderRadius: "50%", background: theme.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16 }}>{f.name.charAt(0).toUpperCase()}</div>
                   }
-                  <span style={s.friendName}>{f.name}</span>
+                  <span style={{ fontSize: 11, color: theme.text, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: 60 }}>{f.name}</span>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── Posts ── */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ ...s.sectionTitle, marginBottom: 12 }}>
-          Posts {!postsLoading && `(${posts.length})`}
-        </div>
-        {postsLoading ? (
-          <div style={s.emptyNote}>Loading...</div>
-        ) : posts.length === 0 ? (
-          <div style={{ ...s.emptyNote, background: "#fff", borderRadius: 8, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", padding: 24 }}>
-            No posts yet.
-          </div>
-        ) : (
-          posts.map(post => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onUpdate={handlePostUpdate}
-              onDelete={handlePostDelete}
-            />
-          ))
-        )}
+      {/* Posts */}
+      <div style={{ fontSize: 11, fontWeight: 700, color: theme.textSub, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
+        Posts {!postsLoading && `(${posts.length})`}
       </div>
+      {postsLoading ? (
+        <div style={{ fontSize: 13, color: theme.textSub }}>Loading…</div>
+      ) : posts.length === 0 ? (
+        <div style={{ background: theme.card, border: `1px solid ${theme.border}`, borderRadius: 4, padding: 24, textAlign: "center", fontSize: 14, color: theme.textSub }}>
+          No posts yet.
+        </div>
+      ) : (
+        posts.map(post => (
+          <PostCard key={post.id} post={post} onUpdate={handlePostUpdate} onDelete={handlePostDelete} />
+        ))
+      )}
     </div>
   );
 }

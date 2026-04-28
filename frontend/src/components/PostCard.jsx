@@ -2,44 +2,21 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
-const s = {
-  card: { background: "#fff", borderRadius: 8, padding: 20, marginBottom: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" },
-  header: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 },
-  avatar: { width: 40, height: 40, borderRadius: "50%", objectFit: "cover", background: "#e4e6eb" },
-  avatarPlaceholder: { width: 40, height: 40, borderRadius: "50%", background: "#1877f2", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 16 },
-  authorLink: { display: "flex", alignItems: "center", gap: 12, cursor: "pointer" },
-  name: { fontWeight: 600, fontSize: 15, color: "#1c1e21" },
-  username: { fontSize: 12, color: "#65676b" },
-  date: { fontSize: 12, color: "#65676b" },
-  communityBadge: { display: "inline-flex", alignItems: "center", gap: 5, background: "#f0f2f5", borderRadius: 12, padding: "3px 10px", marginBottom: 8, cursor: "pointer", fontSize: 12, color: "#1877f2", fontWeight: 600 },
-  communityBadgeImg: { width: 16, height: 16, borderRadius: "50%", objectFit: "cover" },
-  communityBadgeDot: { width: 10, height: 10, borderRadius: "50%", background: "#1877f2", display: "inline-block" },
-  communityBadgeText: {},
-  title: {
-    fontSize: 18, fontWeight: 700, lineHeight: 1.35, marginBottom: 8,
-    color: "#1c1e21", cursor: "pointer", display: "inline-block",
-  },
-  titleHover: { textDecoration: "underline" },
-  content: { fontSize: 15, lineHeight: 1.5, marginBottom: 12, color: "#1c1e21" },
-  linkBox: {
-    display: "block", marginBottom: 12, padding: "10px 14px",
-    background: "#f0f2f5", borderRadius: 6, border: "1px solid #e4e6eb",
-    color: "#1877f2", fontSize: 14, textDecoration: "none",
-    wordBreak: "break-all", lineHeight: 1.4,
-  },
-  media: { width: "100%", maxHeight: 2000, objectFit: "contain", borderRadius: 8, marginBottom: 12, display: "block", background: "#f0f2f5" },
-  actions: { display: "flex", gap: 10, alignItems: "center", borderTop: "1px solid #f0f2f5", paddingTop: 10, marginTop: 4 },
-  likeBtn: { border: "none", background: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "4px 8px", borderRadius: 6 },
-  commentBtn: { border: "none", background: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, padding: "4px 8px", borderRadius: 6, color: "#65676b" },
-  deleteBtn: { border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "#e41749", marginLeft: "auto" },
-};
+function timeAgo(iso) {
+  const secs = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (secs < 60) return `${secs}s ago`;
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+  return `${Math.floor(secs / 86400)}d ago`;
+}
 
 export default function PostCard({ post, onUpdate, onDelete }) {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [titleHovered, setTitleHovered] = useState(false);
 
   const handleLike = async () => {
     if (loading) return;
@@ -48,7 +25,7 @@ export default function PostCard({ post, onUpdate, onDelete }) {
       const { data } = await api.post(`/api/posts/${post.id}/like`);
       onUpdate(data);
     } catch {
-      // no-op: like failed silently, state stays unchanged
+      // silent
     } finally {
       setLoading(false);
     }
@@ -65,84 +42,190 @@ export default function PostCard({ post, onUpdate, onDelete }) {
   };
 
   const goToDetail = () => navigate(`/posts/${post.id}`);
-
   const initials = post.author.name.charAt(0).toUpperCase();
-  const dateStr = new Date(post.created_at).toLocaleString();
   const commentCount = post.comment_count ?? 0;
 
   return (
-    <div style={s.card}>
-      <div style={s.header}>
-        <div style={s.authorLink} onClick={() => navigate(`/users/${post.author.id}`)}>
-          {post.author.avatar_url
-            ? <img src={post.author.avatar_url} alt="" style={s.avatar} />
-            : <div style={s.avatarPlaceholder}>{initials}</div>
-          }
-          <div>
-            <div style={s.name}>{post.author.name}</div>
-            {post.author.username && <div style={s.username}>@{post.author.username}</div>}
-          </div>
-        </div>
-        <div style={{ ...s.date, marginLeft: "auto" }}>{dateStr}</div>
-      </div>
-
-      {post.community && (
-        <div
-          style={s.communityBadge}
-          onClick={(e) => { e.stopPropagation(); navigate(`/communities/${post.community.id}`); }}
-        >
-          {post.community.avatar_url
-            ? <img src={post.community.avatar_url} alt="" style={s.communityBadgeImg} />
-            : <span style={s.communityBadgeDot} />
-          }
-          <span style={s.communityBadgeText}>c/{post.community.name}</span>
-        </div>
-      )}
-
-      {post.title && (
-        <div
-          style={{ ...s.title, ...(titleHovered ? s.titleHover : {}) }}
-          onClick={goToDetail}
-          onMouseEnter={() => setTitleHovered(true)}
-          onMouseLeave={() => setTitleHovered(false)}
-        >
-          {post.title}
-        </div>
-      )}
-
-      {post.content && post.content.trim() && (
-        <p style={s.content}>{post.content}</p>
-      )}
-
-      {post.link_url && (
-        <a href={post.link_url} target="_blank" rel="noopener noreferrer" style={s.linkBox}>
-          🔗 {post.link_url}
-        </a>
-      )}
-
-      {post.media_url && post.media_type === "image" && (
-        <img src={post.media_url} alt="" style={s.media} />
-      )}
-      {post.media_url && post.media_type === "video" && (
-        <video src={post.media_url} style={s.media} controls />
-      )}
-
-      <div style={s.actions}>
+    <div style={{
+      display: "flex",
+      background: theme.card,
+      border: `1px solid ${theme.border}`,
+      borderRadius: 4,
+      marginBottom: 10,
+      overflow: "hidden",
+      transition: "border-color 0.15s",
+    }}
+      onMouseEnter={e => e.currentTarget.style.borderColor = theme.textSub}
+      onMouseLeave={e => e.currentTarget.style.borderColor = theme.border}
+    >
+      {/* Vote column */}
+      <div style={{
+        width: 40,
+        background: theme.cardHover,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "8px 0",
+        gap: 2,
+        flexShrink: 0,
+      }}>
         <button
-          style={{ ...s.likeBtn, color: post.liked_by_me ? "#1877f2" : "#65676b" }}
           onClick={handleLike}
           disabled={loading}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: loading ? "wait" : "pointer",
+            color: post.liked_by_me ? theme.upvote : theme.textSub,
+            fontSize: 18,
+            lineHeight: 1,
+            padding: "2px 0",
+            fontWeight: 700,
+          }}
+          title="Upvote"
         >
-          {post.liked_by_me ? "♥" : "♡"} {post.like_count} {post.like_count === 1 ? "Like" : "Likes"}
+          ▲
         </button>
+        <span style={{
+          fontSize: 12,
+          fontWeight: 700,
+          color: post.liked_by_me ? theme.upvote : theme.text,
+          minWidth: 20,
+          textAlign: "center",
+        }}>
+          {post.like_count}
+        </span>
+      </div>
 
-        <button style={s.commentBtn} onClick={goToDetail}>
-          💬 {commentCount} {commentCount === 1 ? "Comment" : "Comments"}
-        </button>
+      {/* Content */}
+      <div style={{ flex: 1, padding: "8px 10px", minWidth: 0 }}>
+        {/* Meta: community + author + time */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
+          {post.community && (
+            <>
+              <span
+                style={{ fontSize: 12, fontWeight: 700, color: theme.text, cursor: "pointer" }}
+                onClick={e => { e.stopPropagation(); navigate(`/communities/${post.community.id}`); }}
+              >
+                c/{post.community.name}
+              </span>
+              <span style={{ color: theme.border, fontSize: 12 }}>·</span>
+            </>
+          )}
+          <span
+            style={{ fontSize: 12, color: theme.textSub, cursor: "pointer" }}
+            onClick={() => navigate(`/users/${post.author.id}`)}
+          >
+            {post.author.avatar_url
+              ? <img src={post.author.avatar_url} alt="" style={{ width: 16, height: 16, borderRadius: "50%", verticalAlign: "middle", marginRight: 4, objectFit: "cover" }} />
+              : <span style={{ display: "inline-flex", width: 16, height: 16, borderRadius: "50%", background: theme.accent, color: "#fff", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, verticalAlign: "middle", marginRight: 4 }}>{initials}</span>
+            }
+            u/{post.author.username || post.author.name}
+          </span>
+          <span style={{ color: theme.textSub, fontSize: 12 }}>· {timeAgo(post.created_at)}</span>
+        </div>
 
-        {user?.id === post.author.id && (
-          <button style={s.deleteBtn} onClick={handleDelete}>Delete</button>
+        {/* Title */}
+        {post.title && (
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: theme.text,
+              lineHeight: 1.3,
+              marginBottom: 6,
+              cursor: "pointer",
+            }}
+            onClick={goToDetail}
+          >
+            {post.title}
+          </div>
         )}
+
+        {/* Body preview (first 200 chars) */}
+        {post.content && post.content.trim() && (
+          <p style={{ fontSize: 14, color: theme.textSub, lineHeight: 1.5, marginBottom: 8, margin: "0 0 8px" }}>
+            {post.content.length > 200 ? post.content.slice(0, 200) + "…" : post.content}
+          </p>
+        )}
+
+        {/* Link */}
+        {post.link_url && (
+          <a
+            href={post.link_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "block",
+              fontSize: 13,
+              color: theme.link,
+              wordBreak: "break-all",
+              marginBottom: 8,
+              textDecoration: "none",
+            }}
+          >
+            🔗 {post.link_url.length > 60 ? post.link_url.slice(0, 60) + "…" : post.link_url}
+          </a>
+        )}
+
+        {/* Media */}
+        {post.media_url && post.media_type === "image" && (
+          <img
+            src={post.media_url}
+            alt=""
+            onClick={goToDetail}
+            style={{ width: "100%", maxHeight: 512, objectFit: "contain", borderRadius: 4, marginBottom: 8, display: "block", cursor: "pointer", background: theme.cardHover }}
+          />
+        )}
+        {post.media_url && post.media_type === "video" && (
+          <video
+            src={post.media_url}
+            controls
+            style={{ width: "100%", maxHeight: 400, borderRadius: 4, marginBottom: 8, display: "block", background: theme.cardHover }}
+          />
+        )}
+
+        {/* Action bar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+          <button
+            onClick={goToDetail}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: theme.textSub,
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "4px 8px",
+              borderRadius: 2,
+              fontFamily: "inherit",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = theme.cardHover}
+            onMouseLeave={e => e.currentTarget.style.background = "none"}
+          >
+            💬 {commentCount} {commentCount === 1 ? "Comment" : "Comments"}
+          </button>
+
+          {user?.id === post.author.id && (
+            <button
+              onClick={handleDelete}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: theme.danger,
+                fontSize: 12,
+                fontWeight: 700,
+                padding: "4px 8px",
+                borderRadius: 2,
+                fontFamily: "inherit",
+                marginLeft: "auto",
+              }}
+            >
+              Delete
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

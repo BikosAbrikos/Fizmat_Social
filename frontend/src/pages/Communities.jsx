@@ -1,67 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
+import { useTheme } from "../context/ThemeContext";
 import { useIsMobile } from "../hooks/useIsMobile";
-
-const s = {
-  page: { maxWidth: 900, margin: "0 auto", padding: "24px 16px" },
-  topRow: {
-    display: "flex", alignItems: "center", gap: 12, marginBottom: 20,
-    flexWrap: "wrap",
-  },
-  searchInput: {
-    flex: 1, minWidth: 180, padding: "10px 14px", border: "1px solid #ccd0d5",
-    borderRadius: 20, fontSize: 14, fontFamily: "inherit", outline: "none",
-    boxSizing: "border-box",
-  },
-  createBtn: {
-    padding: "10px 20px", background: "#1877f2", color: "#fff", border: "none",
-    borderRadius: 20, fontWeight: 700, fontSize: 14, cursor: "pointer",
-    whiteSpace: "nowrap",
-  },
-  grid: { display: "grid", gap: 16 },
-  card: {
-    background: "#fff", borderRadius: 8, padding: 16,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)", cursor: "pointer",
-    display: "flex", flexDirection: "column", gap: 10,
-    transition: "box-shadow 0.15s",
-    position: "relative",
-  },
-  cardTop: { display: "flex", alignItems: "center", gap: 12 },
-  avatarCircle: {
-    width: 72, height: 72, borderRadius: "50%", background: "#1877f2",
-    color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-    fontWeight: 700, fontSize: 26, flexShrink: 0, objectFit: "cover",
-  },
-  cardBody: { flex: 1, minWidth: 0 },
-  cardName: { fontWeight: 700, fontSize: 16, color: "#1c1e21", marginBottom: 2 },
-  cardDesc: {
-    fontSize: 13, color: "#65676b", lineHeight: 1.4, marginBottom: 6,
-    overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2,
-    WebkitBoxOrient: "vertical",
-  },
-  cardMeta: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  memberCount: { fontSize: 12, color: "#65676b" },
-  privateBadge: {
-    fontSize: 11, fontWeight: 700, background: "#f0f2f5", color: "#65676b",
-    borderRadius: 10, padding: "2px 8px",
-  },
-  joinBtn: {
-    marginTop: 8, padding: "7px 16px", borderRadius: 20, fontWeight: 700,
-    fontSize: 13, cursor: "pointer", border: "none", alignSelf: "flex-start",
-  },
-  empty: { textAlign: "center", color: "#65676b", marginTop: 40, fontSize: 15 },
-  loading: { textAlign: "center", color: "#65676b", marginTop: 40 },
-};
 
 function getInitials(name) {
   return name ? name.charAt(0).toUpperCase() : "?";
 }
 
-function CommunityCard({ community, onAction }) {
+function CommunityCard({ community, onAction, theme }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-
   const { my_role, is_private, name, description, member_count, avatar_url, id } = community;
 
   const handleJoin = async (e) => {
@@ -72,8 +21,7 @@ function CommunityCard({ community, onAction }) {
       await api.post(`/api/communities/${id}/join`);
       onAction();
     } catch (err) {
-      const detail = err.response?.data?.detail;
-      alert(detail || "Failed to join");
+      alert(err.response?.data?.detail || "Failed to join");
     } finally {
       setLoading(false);
     }
@@ -88,65 +36,100 @@ function CommunityCard({ community, onAction }) {
       await api.delete(`/api/communities/${id}/leave`);
       onAction();
     } catch (err) {
-      const detail = err.response?.data?.detail;
-      alert(detail || "Failed to leave");
+      alert(err.response?.data?.detail || "Failed to leave");
     } finally {
       setLoading(false);
     }
   };
 
   const isMember = my_role === "member" || my_role === "moderator" || my_role === "owner";
-
-  let btnLabel = "Join";
-  let btnStyle = { ...s.joinBtn, background: "#1877f2", color: "#fff" };
+  let btnLabel = is_private ? "Request to Join" : "Join";
+  let btnBg = theme.accent;
+  let btnColor = "#fff";
+  let btnBorder = "none";
   let btnAction = handleJoin;
+  let btnDisabled = false;
 
   if (my_role === "owner") {
     btnLabel = "Owner";
-    btnStyle = { ...s.joinBtn, background: "#f0f2f5", color: "#65676b", cursor: "default" };
-    btnAction = (e) => { e.stopPropagation(); };
+    btnBg = theme.cardHover;
+    btnColor = theme.textSub;
+    btnAction = (e) => e.stopPropagation();
+    btnDisabled = true;
   } else if (my_role === "pending") {
-    btnLabel = "Pending...";
-    btnStyle = { ...s.joinBtn, background: "#f0f2f5", color: "#65676b", cursor: "default" };
-    btnAction = (e) => { e.stopPropagation(); };
+    btnLabel = "Pending…";
+    btnBg = theme.cardHover;
+    btnColor = theme.textSub;
+    btnAction = (e) => e.stopPropagation();
+    btnDisabled = true;
   } else if (isMember) {
     btnLabel = "Joined ✓";
-    btnStyle = { ...s.joinBtn, background: "#e7f3ff", color: "#1877f2" };
+    btnBg = "none";
+    btnColor = theme.accent;
+    btnBorder = `1px solid ${theme.accent}`;
     btnAction = handleLeave;
-  } else if (is_private) {
-    btnLabel = "Request to Join";
-    btnStyle = { ...s.joinBtn, background: "#fff", color: "#1877f2", border: "1.5px solid #1877f2" };
-    btnAction = handleJoin;
   }
 
-  const truncDesc = description && description.length > 80
-    ? description.slice(0, 80) + "..."
-    : description;
-
   return (
-    <div style={s.card} onClick={() => navigate(`/communities/${id}`)}>
-      <div style={s.cardTop}>
+    <div
+      style={{
+        background: theme.card,
+        border: `1px solid ${theme.border}`,
+        borderRadius: 4,
+        padding: 14,
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        transition: "border-color 0.15s",
+      }}
+      onClick={() => navigate(`/communities/${id}`)}
+      onMouseEnter={e => e.currentTarget.style.borderColor = theme.textSub}
+      onMouseLeave={e => e.currentTarget.style.borderColor = theme.border}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         {avatar_url
-          ? <img src={avatar_url} alt="" style={s.avatarCircle} />
-          : <div style={s.avatarCircle}>{getInitials(name)}</div>
+          ? <img src={avatar_url} alt="" style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+          : <div style={{ width: 48, height: 48, borderRadius: "50%", background: theme.accent, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 20, flexShrink: 0 }}>{getInitials(name)}</div>
         }
-        <div style={s.cardBody}>
-          <div style={s.cardName}>{name}</div>
-          {truncDesc && <div style={s.cardDesc}>{truncDesc}</div>}
-          <div style={s.cardMeta}>
-            <span style={s.memberCount}>👥 {member_count} {member_count === 1 ? "member" : "members"}</span>
-            {is_private && <span style={s.privateBadge}>🔒 Private</span>}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: theme.text }}>c/{name}</div>
+          {description && (
+            <div style={{ fontSize: 12, color: theme.textSub, marginTop: 2, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+              {description}
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, fontSize: 12, color: theme.textSub }}>
+            <span>👥 {member_count} {member_count === 1 ? "member" : "members"}</span>
+            {is_private && <span style={{ background: theme.cardHover, borderRadius: 10, padding: "1px 7px", fontWeight: 700, fontSize: 11 }}>🔒 Private</span>}
           </div>
         </div>
       </div>
-      <button style={btnStyle} onClick={btnAction} disabled={loading}>
-        {loading ? "..." : btnLabel}
+      <button
+        onClick={btnAction}
+        disabled={loading || btnDisabled}
+        style={{
+          padding: "6px 0",
+          background: btnBg,
+          color: btnColor,
+          border: btnBorder,
+          borderRadius: 20,
+          fontWeight: 700,
+          fontSize: 13,
+          cursor: (loading || btnDisabled) ? "default" : "pointer",
+          fontFamily: "inherit",
+          alignSelf: "flex-start",
+          minWidth: 100,
+        }}
+      >
+        {loading ? "…" : btnLabel}
       </button>
     </div>
   );
 }
 
 export default function Communities() {
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [communities, setCommunities] = useState([]);
@@ -166,41 +149,65 @@ export default function Communities() {
     }
   };
 
-  useEffect(() => {
-    fetchCommunities();
-  }, []);
+  useEffect(() => { fetchCommunities(); }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => fetchCommunities(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  const gridCols = isMobile ? "1fr" : "1fr 1fr";
-
   return (
-    <div style={{ ...s.page, paddingBottom: isMobile ? 96 : 24 }}>
-      <div style={s.topRow}>
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "14px 10px 80px" : "20px 20px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         <input
-          style={s.searchInput}
-          placeholder="Search communities..."
+          style={{
+            flex: 1,
+            minWidth: 180,
+            padding: "9px 14px",
+            border: `1px solid ${theme.inputBorder}`,
+            borderRadius: 20,
+            fontSize: 14,
+            fontFamily: "inherit",
+            outline: "none",
+            background: theme.input,
+            color: theme.text,
+            boxSizing: "border-box",
+          }}
+          placeholder="Search communities…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onFocus={e => e.currentTarget.style.borderColor = theme.accent}
+          onBlur={e => e.currentTarget.style.borderColor = theme.inputBorder}
         />
-        <button style={s.createBtn} onClick={() => navigate("/communities/create")}>
+        <button
+          onClick={() => navigate("/communities/create")}
+          style={{
+            padding: "9px 18px",
+            background: theme.accent,
+            color: "#fff",
+            border: "none",
+            borderRadius: 20,
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            whiteSpace: "nowrap",
+          }}
+        >
           + Create Community
         </button>
       </div>
 
       {loading ? (
-        <div style={s.loading}>Loading...</div>
+        <div style={{ textAlign: "center", color: theme.textSub, padding: "40px 0" }}>Loading…</div>
       ) : communities.length === 0 ? (
-        <div style={s.empty}>
+        <div style={{ textAlign: "center", color: theme.textSub, padding: "40px 0", fontSize: 14 }}>
           {search ? "No communities match your search." : "No communities yet. Create one!"}
         </div>
       ) : (
-        <div style={{ ...s.grid, gridTemplateColumns: gridCols }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
           {communities.map((c) => (
-            <CommunityCard key={c.id} community={c} onAction={() => fetchCommunities(search)} />
+            <CommunityCard key={c.id} community={c} onAction={() => fetchCommunities(search)} theme={theme} />
           ))}
         </div>
       )}

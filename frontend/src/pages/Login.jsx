@@ -1,21 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-
-const s = {
-  page: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" },
-  box: { background: "#fff", borderRadius: 8, padding: 32, width: 380, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" },
-  title: { fontSize: 24, fontWeight: 700, marginBottom: 24, textAlign: "center" },
-  field: { marginBottom: 16 },
-  label: { display: "block", fontSize: 14, fontWeight: 600, marginBottom: 4 },
-  input: { width: "100%", padding: "10px 12px", border: "1px solid #ccd0d5", borderRadius: 6, fontSize: 15 },
-  btn: { width: "100%", padding: 12, background: "#1877f2", color: "#fff", border: "none", borderRadius: 6, fontSize: 16, fontWeight: 700, cursor: "pointer", marginTop: 8 },
-  error: { color: "#e41749", fontSize: 14, marginBottom: 12 },
-  footer: { marginTop: 20, textAlign: "center", fontSize: 14 },
-};
+import { useTheme } from "../context/ThemeContext";
 
 export default function Login() {
   const { login } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,26 +26,101 @@ export default function Login() {
     }
   };
 
+  const input = {
+    width: "100%",
+    padding: "10px 12px",
+    border: `1px solid ${theme.inputBorder}`,
+    borderRadius: 4,
+    fontSize: 14,
+    background: theme.input,
+    color: theme.text,
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+    outline: "none",
+  };
+
   return (
-    <div style={s.page}>
-      <div style={s.box}>
-        <h1 style={s.title}>FizMat Social</h1>
-        <form onSubmit={handleSubmit}>
-          {error && <div style={s.error}>{error}</div>}
-          <div style={s.field}>
-            <label style={s.label}>Email</label>
-            <input style={s.input} type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@fizmat.kz" />
+    <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 16px" }}>
+      <div style={{ width: "100%", maxWidth: 360 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 900, color: theme.accent, textAlign: "center", marginBottom: 24, letterSpacing: -0.5 }}>
+          FizMat Social
+        </h1>
+
+        <div style={{
+          background: theme.card,
+          border: `1px solid ${theme.border}`,
+          borderRadius: 4,
+          padding: 24,
+        }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: theme.text, marginBottom: 20, textAlign: "center" }}>Log In</h2>
+
+          {error && (
+            <div style={{ background: "rgba(255,88,91,0.1)", border: `1px solid ${theme.danger}`, borderRadius: 4, padding: "10px 12px", color: theme.danger, fontSize: 13, marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: theme.textSub, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
+                Email
+              </label>
+              <input
+                style={input}
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                placeholder="you@fizmat.kz"
+                autoFocus
+                onFocus={e => e.currentTarget.style.borderColor = theme.accent}
+                onBlur={e => e.currentTarget.style.borderColor = theme.inputBorder}
+              />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: theme.textSub, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
+                Password
+              </label>
+              <input
+                style={input}
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                placeholder="••••••"
+                onFocus={e => e.currentTarget.style.borderColor = theme.accent}
+                onBlur={e => e.currentTarget.style.borderColor = theme.inputBorder}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: "100%",
+                padding: "10px 0",
+                background: theme.accent,
+                color: "#fff",
+                border: "none",
+                borderRadius: 20,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.7 : 1,
+                fontFamily: "inherit",
+              }}
+            >
+              {loading ? "Logging in…" : "Log In"}
+            </button>
+          </form>
+
+          <div style={{ marginTop: 16, textAlign: "center", fontSize: 13, color: theme.textSub }}>
+            No account?{" "}
+            <Link to="/register" style={{ color: theme.accent, fontWeight: 700, textDecoration: "none" }}>
+              Register
+            </Link>
           </div>
-          <div style={s.field}>
-            <label style={s.label}>Password</label>
-            <input style={s.input} type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••" />
-          </div>
-          <button style={s.btn} type="submit" disabled={loading}>
-            {loading ? "Logging in..." : "Log In"}
-          </button>
-        </form>
-        <div style={s.footer}>
-          No account? <Link to="/register">Register</Link>
         </div>
       </div>
     </div>
