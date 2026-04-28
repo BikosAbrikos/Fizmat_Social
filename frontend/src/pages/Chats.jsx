@@ -64,7 +64,11 @@ export default function Chats() {
           const { data } = await api.get(`/api/chats/${selected.id}/messages?since_id=${lastIdRef.current}`);
           if (active && data.length) {
             lastIdRef.current = data[data.length - 1].id;
-            setMessages(prev => [...prev, ...data]);
+            setMessages(prev => {
+              const seen = new Set(prev.map(m => m.id));
+              const fresh = data.filter(m => !seen.has(m.id));
+              return fresh.length ? [...prev, ...fresh] : prev;
+            });
           }
         } catch {}
       }, 2000);
@@ -84,8 +88,8 @@ export default function Chats() {
     setSending(true);
     try {
       const { data } = await api.post(`/api/chats/${selected.id}/messages`, { content: newMsg.trim() });
-      setMessages(prev => [...prev, data]);
       lastIdRef.current = data.id;
+      setMessages(prev => prev.some(m => m.id === data.id) ? prev : [...prev, data]);
       setNewMsg("");
       inputRef.current?.focus();
     } finally {
