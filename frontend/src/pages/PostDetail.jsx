@@ -12,7 +12,6 @@ const s = {
     fontWeight: 600, padding: "4px 0", marginBottom: 16, fontFamily: "inherit",
   },
 
-  // ── Post card ────────────────────────────────────────────────────────────
   card: {
     background: "#fff", borderRadius: 8,
     boxShadow: "0 1px 4px rgba(0,0,0,0.1)", padding: 20, marginBottom: 16,
@@ -53,14 +52,12 @@ const s = {
     fontSize: 13, color: "#e41749", marginLeft: "auto", fontFamily: "inherit",
   },
 
-  // ── Comments section ──────────────────────────────────────────────────────
   commentsCard: {
     background: "#fff", borderRadius: 8,
     boxShadow: "0 1px 4px rgba(0,0,0,0.1)", padding: 20,
   },
   commentsHeading: { fontSize: 16, fontWeight: 700, color: "#1c1e21", marginBottom: 16 },
 
-  // Input row
   inputRow: { display: "flex", gap: 10, marginBottom: 20 },
   inputAvatar: { width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0 },
   inputAvatarPlaceholder: {
@@ -74,6 +71,11 @@ const s = {
     padding: "9px 12px", fontSize: 14, fontFamily: "inherit",
     resize: "vertical", minHeight: 72, boxSizing: "border-box", outline: "none",
   },
+  replyTextarea: {
+    width: "100%", border: "1px solid #ccd0d5", borderRadius: 8,
+    padding: "7px 10px", fontSize: 13, fontFamily: "inherit",
+    resize: "vertical", minHeight: 56, boxSizing: "border-box", outline: "none",
+  },
   inputFooter: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 },
   charCount: { fontSize: 12, color: "#65676b" },
   submitBtn: (disabled) => ({
@@ -81,9 +83,12 @@ const s = {
     borderRadius: 20, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer",
     fontSize: 13, opacity: disabled ? 0.5 : 1, fontFamily: "inherit",
   }),
+  cancelBtn: {
+    padding: "5px 14px", background: "none", color: "#65676b", border: "none",
+    borderRadius: 20, fontWeight: 600, cursor: "pointer", fontSize: 13, fontFamily: "inherit",
+  },
   commentError: { color: "#e41749", fontSize: 13, marginTop: 6 },
 
-  // Comment list
   divider: { height: 1, background: "#e4e6eb", margin: "4px 0 16px" },
   commentItem: { display: "flex", gap: 10, marginBottom: 14 },
   commentAvatar: { width: 34, height: 34, borderRadius: "50%", objectFit: "cover", flexShrink: 0 },
@@ -105,12 +110,30 @@ const s = {
     border: "none", background: "none", cursor: "pointer",
     fontSize: 11, color: "#e41749", padding: 0, fontFamily: "inherit",
   },
+  replyBtn: {
+    border: "none", background: "none", cursor: "pointer",
+    fontSize: 11, color: "#1877f2", fontWeight: 600, padding: 0, fontFamily: "inherit",
+  },
 
   noComments: { textAlign: "center", color: "#65676b", padding: "20px 0", fontSize: 14 },
   loading: { textAlign: "center", color: "#65676b", padding: "60px 0", fontSize: 15 },
 };
 
 const MAX_COMMENT = 1000;
+
+function buildTree(comments) {
+  const map = {};
+  const roots = [];
+  comments.forEach(c => { map[c.id] = { ...c, _replies: [] }; });
+  comments.forEach(c => {
+    if (c.parent_comment_id && map[c.parent_comment_id]) {
+      map[c.parent_comment_id]._replies.push(map[c.id]);
+    } else {
+      roots.push(map[c.id]);
+    }
+  });
+  return roots;
+}
 
 export default function PostDetail() {
   const { id } = useParams();
@@ -125,8 +148,10 @@ export default function PostDetail() {
   const [commentError, setCommentError] = useState("");
   const [likeLoading, setLikeLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+  const [replyingTo, setReplyingTo] = useState(null); // comment id
+  const [replyText, setReplyText] = useState("");
+  const [replySubmitting, setReplySubmitting] = useState(false);
 
-  // Load post + comments in parallel
   useEffect(() => {
     Promise.all([
       api.get(`/api/posts/${id}`),
@@ -167,7 +192,6 @@ export default function PostDetail() {
       const { data } = await api.post(`/api/posts/${post.id}/comments`, { content: trimmed });
       setComments(prev => [...prev, data]);
       setCommentText("");
-      // Update comment count on the post card
       setPost(prev => ({ ...prev, comment_count: prev.comment_count + 1 }));
     } catch (err) {
       const detail = err.response?.data?.detail;
@@ -177,11 +201,39 @@ export default function PostDetail() {
     }
   };
 
+  const handleSubmitReply = async (parentId) => {
+    const trimmed = replyText.trim();
+    if (!trimmed) return;
+    setReplySubmitting(true);
+    try {
+      const { data } = await api.post(`/api/posts/${post.id}/comments`, {
+        content: trimmed,
+        parent_comment_id: parentId,
+      });
+      setComments(prev => [...prev, data]);
+      setPost(prev => ({ ...prev, comment_count: prev.comment_count + 1 }));
+      setReplyingTo(null);
+      setReplyText("");
+    } catch {
+      // silent fail
+    } finally {
+      setReplySubmitting(false);
+    }
+  };
+
   const handleDeleteComment = async (commentId) => {
     if (!window.confirm("Delete this comment?")) return;
     await api.delete(`/api/posts/${post.id}/comments/${commentId}`);
-    setComments(prev => prev.filter(c => c.id !== commentId));
-    setPost(prev => ({ ...prev, comment_count: Math.max(0, prev.comment_count - 1) }));
+    // Remove comment and any of its replies from flat list
+    const idsToRemove = new Set();
+    const collectIds = (cid) => {
+      idsToRemove.add(cid);
+      comments.filter(c => c.parent_comment_id === cid).forEach(c => collectIds(c.id));
+    };
+    collectIds(commentId);
+    const removed = idsToRemove.size;
+    setComments(prev => prev.filter(c => !idsToRemove.has(c.id)));
+    setPost(prev => ({ ...prev, comment_count: Math.max(0, prev.comment_count - removed) }));
   };
 
   const formatDate = (iso) => {
@@ -194,16 +246,113 @@ export default function PostDetail() {
         " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
+  const renderComment = (c, depth = 0) => {
+    const initials = c.author.name.charAt(0).toUpperCase();
+    const isReplying = replyingTo === c.id;
+    const avatarSize = depth > 0 ? 28 : 34;
+    const avatarStyle = {
+      width: avatarSize, height: avatarSize, borderRadius: "50%",
+      objectFit: "cover", flexShrink: 0,
+    };
+    const avatarPlaceholderStyle = {
+      ...avatarStyle,
+      background: depth > 0 ? "#e4e6eb" : "#e4e6eb",
+      color: "#1c1e21", display: "flex", alignItems: "center",
+      justifyContent: "center", fontWeight: 700, fontSize: depth > 0 ? 11 : 13,
+    };
+
+    return (
+      <div key={c.id}>
+        <div style={{ ...s.commentItem, marginLeft: depth * 28 }}>
+          <div style={{ cursor: "pointer" }} onClick={() => navigate(`/users/${c.author.id}`)}>
+            {c.author.avatar_url
+              ? <img src={c.author.avatar_url} alt="" style={avatarStyle} />
+              : <div style={avatarPlaceholderStyle}>{initials}</div>
+            }
+          </div>
+          <div style={s.commentBody}>
+            <div style={s.commentBubble}>
+              <div style={s.commentAuthor} onClick={() => navigate(`/users/${c.author.id}`)}>
+                {c.author.name}
+                {c.author.username && (
+                  <span style={{ fontWeight: 400, color: "#65676b", marginLeft: 6 }}>
+                    @{c.author.username}
+                  </span>
+                )}
+              </div>
+              <div style={s.commentText}>{c.content}</div>
+            </div>
+            <div style={s.commentMeta}>
+              <span style={s.commentDate}>{formatDate(c.created_at)}</span>
+              {depth < 3 && (
+                <button style={s.replyBtn} onClick={() => {
+                  setReplyingTo(isReplying ? null : c.id);
+                  setReplyText("");
+                }}>
+                  {isReplying ? "Cancel" : "Reply"}
+                </button>
+              )}
+              {user?.id === c.author.id && (
+                <button style={s.commentDeleteBtn} onClick={() => handleDeleteComment(c.id)}>
+                  Delete
+                </button>
+              )}
+            </div>
+
+            {/* Inline reply input */}
+            {isReplying && (
+              <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <div>
+                  {user?.avatar_url
+                    ? <img src={user.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
+                    : <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#1877f2", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 11 }}>
+                        {user?.name?.charAt(0).toUpperCase()}
+                      </div>
+                  }
+                </div>
+                <div style={{ flex: 1 }}>
+                  <textarea
+                    autoFocus
+                    style={s.replyTextarea}
+                    placeholder={`Reply to ${c.author.name}…`}
+                    value={replyText}
+                    onChange={e => setReplyText(e.target.value.slice(0, MAX_COMMENT))}
+                  />
+                  <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", marginTop: 4 }}>
+                    <button style={s.cancelBtn} onClick={() => { setReplyingTo(null); setReplyText(""); }}>
+                      Cancel
+                    </button>
+                    <button
+                      style={s.submitBtn(!replyText.trim() || replySubmitting)}
+                      disabled={!replyText.trim() || replySubmitting}
+                      onClick={() => handleSubmitReply(c.id)}
+                    >
+                      {replySubmitting ? "Posting…" : "Reply"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Render nested replies */}
+        {c._replies && c._replies.map(r => renderComment(r, depth + 1))}
+      </div>
+    );
+  };
+
   if (pageLoading) return <div style={s.loading}>Loading...</div>;
   if (!post) return null;
 
   const postInitials = post.author.name.charAt(0).toUpperCase();
   const myInitials = user?.name?.charAt(0).toUpperCase() ?? "?";
   const canComment = commentText.trim().length > 0 && !submitting;
+  const tree = buildTree(comments);
+  const topLevelCount = comments.filter(c => !c.parent_comment_id).length;
 
   return (
     <div style={s.page}>
-      {/* Back button */}
       <button style={s.backBtn} onClick={() => navigate(-1)}>
         ← Back
       </button>
@@ -264,10 +413,10 @@ export default function PostDetail() {
       {/* ── Comments card ── */}
       <div style={s.commentsCard}>
         <div style={s.commentsHeading}>
-          Comments ({comments.length})
+          Comments ({post.comment_count})
         </div>
 
-        {/* Input */}
+        {/* Top-level comment input */}
         <form onSubmit={handleSubmitComment}>
           <div style={s.inputRow}>
             {user?.avatar_url
@@ -293,51 +442,11 @@ export default function PostDetail() {
           </div>
         </form>
 
-        {/* List */}
-        {comments.length > 0 && <div style={s.divider} />}
+        {tree.length > 0 && <div style={s.divider} />}
 
-        {comments.length === 0
+        {tree.length === 0
           ? <div style={s.noComments}>No comments yet — be the first!</div>
-          : comments.map(c => {
-              const initials = c.author.name.charAt(0).toUpperCase();
-              return (
-                <div key={c.id} style={s.commentItem}>
-                  <div
-                    style={{ cursor: "pointer" }}
-                    onClick={() => navigate(`/users/${c.author.id}`)}
-                  >
-                    {c.author.avatar_url
-                      ? <img src={c.author.avatar_url} alt="" style={s.commentAvatar} />
-                      : <div style={s.commentAvatarPlaceholder}>{initials}</div>
-                    }
-                  </div>
-                  <div style={s.commentBody}>
-                    <div style={s.commentBubble}>
-                      <div
-                        style={s.commentAuthor}
-                        onClick={() => navigate(`/users/${c.author.id}`)}
-                      >
-                        {c.author.name}
-                        {c.author.username && (
-                          <span style={{ fontWeight: 400, color: "#65676b", marginLeft: 6 }}>
-                            @{c.author.username}
-                          </span>
-                        )}
-                      </div>
-                      <div style={s.commentText}>{c.content}</div>
-                    </div>
-                    <div style={s.commentMeta}>
-                      <span style={s.commentDate}>{formatDate(c.created_at)}</span>
-                      {user?.id === c.author.id && (
-                        <button style={s.commentDeleteBtn} onClick={() => handleDeleteComment(c.id)}>
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+          : tree.map(c => renderComment(c, 0))
         }
       </div>
     </div>

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import FriendRequest, User
+from app.models import Block, FriendRequest, User
 from app.push_service import send_push
 from app.schemas import FriendRequestOut, FriendStatusOut, UserOut
 
@@ -25,6 +25,13 @@ def send_request(user_id: int, background_tasks: BackgroundTasks, db: Session = 
     target = db.query(User).filter(User.id == user_id).first()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
+
+    is_blocked = db.query(Block).filter(
+        ((Block.blocker_id == current_user.id) & (Block.blocked_id == user_id)) |
+        ((Block.blocker_id == user_id) & (Block.blocked_id == current_user.id))
+    ).first()
+    if is_blocked:
+        raise HTTPException(status_code=403, detail="Cannot send friend request to this user")
 
     existing = db.query(FriendRequest).filter(
         ((FriendRequest.sender_id == current_user.id) & (FriendRequest.receiver_id == user_id)) |

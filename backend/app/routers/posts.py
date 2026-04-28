@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload, subqueryload
 from app.auth import get_current_user
 from app.config import settings
 from app.database import get_db
-from app.models import Comment, Community, CommunityMember, Like, Post, User
+from app.models import Block, Comment, Community, CommunityMember, Like, Post, User
 from app.schemas import CommentCreate, CommentOut, CommunityBrief, PostCreate, PostOut
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
@@ -62,7 +62,11 @@ def get_feed(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    posts = (
+    blocked_ids = [b.blocked_id for b in db.query(Block).filter(Block.blocker_id == current_user.id).all()]
+    blocking_ids = [b.blocker_id for b in db.query(Block).filter(Block.blocked_id == current_user.id).all()]
+    excluded = set(blocked_ids + blocking_ids)
+
+    query = (
         db.query(Post)
         .options(
             joinedload(Post.author),
@@ -71,10 +75,11 @@ def get_feed(
             joinedload(Post.community),
         )
         .order_by(Post.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
     )
+    if excluded:
+        query = query.filter(Post.author_id.notin_(excluded))
+
+    posts = query.offset(skip).limit(limit).all()
     return [_serialize_post(p, current_user.id) for p in posts]
 
 
@@ -215,7 +220,19 @@ def create_comment(
 ):
     if not db.query(Post).filter(Post.id == post_id).first():
         raise HTTPException(status_code=404, detail="Post not found")
-    comment = Comment(post_id=post_id, author_id=current_user.id, content=body.content)
+    if body.parent_comment_id is not None:
+        parent = db.query(Comment).filter(
+            Comment.id == body.parent_comment_id,
+            Comment.post_id == post_id,
+        ).first()
+        if not parent:
+            raise HTTPException(status_code=404, detail="Parent comment not found")
+    comment = Comment(
+        post_id=post_id,
+        author_id=current_user.id,
+        content=body.content,
+        parent_comment_id=body.parent_comment_id,
+    )
     db.add(comment)
     db.commit()
     # Re-fetch with author so CommentOut serializes correctly

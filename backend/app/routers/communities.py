@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
@@ -202,6 +203,27 @@ def delete_community(
         raise HTTPException(status_code=404, detail="Community not found")
     if community.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Only the owner can delete this community")
+
+    # Delete all community posts and their media from Supabase Storage
+    posts = db.query(Post).filter(Post.community_id == community_id).all()
+    for post in posts:
+        if post.media_url and settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY:
+            try:
+                base = settings.SUPABASE_URL.rstrip("/")
+                prefix = f"{base}/storage/v1/object/public/media/"
+                if post.media_url.startswith(prefix):
+                    storage_path = post.media_url[len(prefix):]
+                    httpx.delete(
+                        f"{base}/storage/v1/object/media/{storage_path}",
+                        headers={
+                            "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
+                            "apikey": settings.SUPABASE_SERVICE_KEY,
+                        },
+                        timeout=10,
+                    )
+            except Exception:
+                pass
+        db.delete(post)
 
     db.delete(community)
     db.commit()

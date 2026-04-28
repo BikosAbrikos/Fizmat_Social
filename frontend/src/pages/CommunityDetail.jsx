@@ -140,10 +140,19 @@ export default function CommunityDetail() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
+  const [settingsName, setSettingsName] = useState("");
+  const [settingsDesc, setSettingsDesc] = useState("");
+  const [settingsPrivate, setSettingsPrivate] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
+
   const fetchCommunity = async () => {
     try {
       const { data } = await api.get(`/api/communities/${id}`);
       setCommunity(data);
+      setSettingsName(data.name);
+      setSettingsDesc(data.description || "");
+      setSettingsPrivate(data.is_private);
     } catch {
       navigate("/communities");
     }
@@ -302,6 +311,36 @@ export default function CommunityDetail() {
     }
   };
 
+  // ── Settings ───────────────────────────────────────────────────────────────
+
+  const handleSaveSettings = async () => {
+    setSettingsSaving(true);
+    setSettingsError("");
+    try {
+      await api.put(`/api/communities/${id}`, {
+        name: settingsName.trim(),
+        description: settingsDesc.trim() || null,
+        is_private: settingsPrivate,
+      });
+      await fetchCommunity();
+    } catch (err) {
+      setSettingsError(err.response?.data?.detail || "Failed to save settings");
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleDeleteCommunity = async () => {
+    if (!window.confirm(`Delete "${community.name}"? This will permanently delete all posts, comments, and data in this community.`)) return;
+    if (!window.confirm("Are you sure? This cannot be undone.")) return;
+    try {
+      await api.delete(`/api/communities/${id}`);
+      navigate("/communities");
+    } catch (err) {
+      alert(err.response?.data?.detail || "Failed to delete community");
+    }
+  };
+
   // ── Post updates ───────────────────────────────────────────────────────────
 
   const handlePostUpdate = (updated) =>
@@ -311,7 +350,7 @@ export default function CommunityDetail() {
 
   // ── Tabs ───────────────────────────────────────────────────────────────────
 
-  const tabs = ["Posts", "Members", ...(isOwnerOrMod ? ["Requests"] : [])];
+  const tabs = ["Posts", "Members", ...(isOwnerOrMod ? ["Requests"] : []), ...(myRole === "owner" ? ["Settings"] : [])];
 
   if (loading) {
     return (
@@ -542,6 +581,73 @@ export default function CommunityDetail() {
               );
             })
           )}
+        </div>
+      )}
+
+      {/* ── Settings ──────────────────────────────────────────────────────── */}
+      {activeTab === "Settings" && myRole === "owner" && (
+        <div style={{ background: "#fff", borderRadius: 8, padding: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: "#1c1e21" }}>Community Settings</div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: "#65676b", display: "block", marginBottom: 6 }}>Name</label>
+            <input
+              value={settingsName}
+              onChange={e => setSettingsName(e.target.value)}
+              maxLength={50}
+              style={{ width: "100%", border: "1px solid #ccd0d5", borderRadius: 6, padding: "8px 12px", fontSize: 14, fontFamily: "inherit", boxSizing: "border-box", outline: "none" }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: "#65676b", display: "block", marginBottom: 6 }}>Description</label>
+            <textarea
+              value={settingsDesc}
+              onChange={e => setSettingsDesc(e.target.value)}
+              maxLength={300}
+              rows={3}
+              style={{ width: "100%", border: "1px solid #ccd0d5", borderRadius: 6, padding: "8px 12px", fontSize: 14, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box", outline: "none" }}
+            />
+            <div style={{ fontSize: 11, color: "#65676b", textAlign: "right" }}>{settingsDesc.length}/300</div>
+          </div>
+
+          <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+            <input
+              type="checkbox"
+              id="settings-private"
+              checked={settingsPrivate}
+              onChange={e => setSettingsPrivate(e.target.checked)}
+              style={{ width: 16, height: 16, cursor: "pointer" }}
+            />
+            <label htmlFor="settings-private" style={{ fontSize: 14, color: "#1c1e21", cursor: "pointer" }}>
+              Private community (members must request to join)
+            </label>
+          </div>
+
+          {settingsError && (
+            <div style={{ color: "#e41749", fontSize: 13, marginBottom: 10 }}>{settingsError}</div>
+          )}
+
+          <button
+            onClick={handleSaveSettings}
+            disabled={settingsSaving || !settingsName.trim()}
+            style={{ padding: "9px 24px", background: "#1877f2", color: "#fff", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 14, cursor: settingsSaving ? "not-allowed" : "pointer", opacity: settingsSaving ? 0.7 : 1, fontFamily: "inherit" }}
+          >
+            {settingsSaving ? "Saving…" : "Save Changes"}
+          </button>
+
+          <div style={{ borderTop: "1px solid #e4e6eb", margin: "24px 0 16px" }} />
+
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#e41749", marginBottom: 8 }}>Danger Zone</div>
+          <p style={{ fontSize: 13, color: "#65676b", marginBottom: 12 }}>
+            Permanently deletes the community, all its posts, comments, and media. This cannot be undone.
+          </p>
+          <button
+            onClick={handleDeleteCommunity}
+            style={{ padding: "9px 24px", background: "#fff", color: "#e41749", border: "1.5px solid #e41749", borderRadius: 6, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}
+          >
+            Delete Community
+          </button>
         </div>
       )}
 

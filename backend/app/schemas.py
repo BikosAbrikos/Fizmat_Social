@@ -292,6 +292,7 @@ class JoinRequestOut(BaseModel):
 
 class CommentCreate(BaseModel):
     content: str
+    parent_comment_id: Optional[int] = None
 
     @field_validator("content")
     @classmethod
@@ -309,5 +310,6 @@ class CommentOut(BaseModel):
     content: str
     created_at: datetime
     author: UserOut
+    parent_comment_id: Optional[int] = None
 
     model_config = {"from_attributes": True}

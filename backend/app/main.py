@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.database import Base, engine
-from app.routers import auth, chats, communities, friends, media, posts, push, users
+from app.routers import auth, blocks, chats, communities, friends, media, posts, push, users
 
 
 @asynccontextmanager
@@ -110,6 +110,23 @@ async def lifespan(app: FastAPI):
         conn.execute(text(
             "ALTER TABLE posts ADD COLUMN IF NOT EXISTS community_id INTEGER REFERENCES communities(id) ON DELETE SET NULL"
         ))
+        conn.execute(text(
+            "ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_comments_parent_id ON comments (parent_comment_id)"
+        ))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS blocks (
+                id SERIAL PRIMARY KEY,
+                blocker_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                blocked_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE(blocker_id, blocked_id)
+            )
+        """))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blocks_blocker ON blocks (blocker_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_blocks_blocked ON blocks (blocked_id)"))
         conn.commit()
     yield
 
@@ -128,6 +145,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(posts.router)
 app.include_router(friends.router)
+app.include_router(blocks.router)
 app.include_router(media.router)
 app.include_router(chats.router)
 app.include_router(push.router)

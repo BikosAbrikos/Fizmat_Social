@@ -26,6 +26,8 @@ class User(Base):
     comments = relationship("Comment", back_populates="author", cascade="all, delete-orphan")
     sent_requests = relationship("FriendRequest", foreign_keys="FriendRequest.sender_id", back_populates="sender", cascade="all, delete-orphan")
     received_requests = relationship("FriendRequest", foreign_keys="FriendRequest.receiver_id", back_populates="receiver", cascade="all, delete-orphan")
+    blocks_given = relationship("Block", foreign_keys="Block.blocker_id", back_populates="blocker", cascade="all, delete-orphan")
+    blocks_received = relationship("Block", foreign_keys="Block.blocked_id", back_populates="blocked_user", cascade="all, delete-orphan")
 
 
 class Post(Base):
@@ -66,10 +68,13 @@ class Comment(Base):
     post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)
+    parent_comment_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     post = relationship("Post", back_populates="comments")
     author = relationship("User", back_populates="comments")
+    replies = relationship("Comment", back_populates="parent", cascade="all, delete-orphan")
+    parent = relationship("Comment", back_populates="replies", remote_side=[id])
 
 
 class FriendRequest(Base):
@@ -164,3 +169,15 @@ class CommunityJoinRequest(Base):
 
     community = relationship("Community", back_populates="join_requests")
     user = relationship("User", foreign_keys=[user_id])
+
+
+class Block(Base):
+    __tablename__ = "blocks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    blocker_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    blocked_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    blocker = relationship("User", foreign_keys=[blocker_id], back_populates="blocks_given")
+    blocked_user = relationship("User", foreign_keys=[blocked_id], back_populates="blocks_received")
