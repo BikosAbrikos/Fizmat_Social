@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload, subqueryload
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import FriendRequest, Post, User
-from app.schemas import PostOut, UserOut, UserUpdate
+from app.schemas import PostOut, UserOut, UserPublicOut, UserUpdate
 from app.security import limiter
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -41,7 +41,7 @@ def update_me(body: UserUpdate, db: Session = Depends(get_db), current_user: Use
     return current_user
 
 
-@router.get("/search", response_model=list[UserOut])
+@router.get("/search", response_model=list[UserPublicOut])
 @limiter.limit("30/minute")
 def search_users(request: Request, q: str = "", db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if len(q.strip()) < 2:
@@ -85,7 +85,7 @@ def get_user_posts(
     return [_serialize_post(p, current_user.id) for p in posts]
 
 
-@router.get("/{user_id}/friends", response_model=List[UserOut])
+@router.get("/{user_id}/friends", response_model=List[UserPublicOut])
 def get_user_friends(
     user_id: int,
     db: Session = Depends(get_db),
@@ -109,7 +109,7 @@ def get_user_friends(
     return db.query(User).filter(User.id.in_(friend_ids)).all()
 
 
-@router.get("/{user_id}", response_model=UserOut)
+@router.get("/{user_id}", response_model=UserPublicOut)
 def get_user(user_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:

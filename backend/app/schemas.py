@@ -79,19 +79,24 @@ class Token(BaseModel):
 
 # ── User ──────────────────────────────────────────────────────────────────────
 
-class UserOut(BaseModel):
+class UserPublicOut(BaseModel):
+    """Safe for any authenticated user to see — no PII."""
     id: int
     name: str
     username: Optional[str]
-    email: str
     avatar_url: Optional[str]
-    age: Optional[int]
     grade: Optional[str]
     bio: Optional[str]
     future_major: Optional[str]
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class UserOut(UserPublicOut):
+    """Full profile — only returned to the owning user (/api/users/me)."""
+    email: str
+    age: Optional[int]
 
 
 class UserUpdate(BaseModel):
@@ -130,7 +135,7 @@ class UserUpdate(BaseModel):
 
 class FriendRequestOut(BaseModel):
     id: int
-    sender: "UserOut"
+    sender: "UserPublicOut"
     status: str
     created_at: datetime
 
@@ -168,7 +173,7 @@ class MessageOut(BaseModel):
 
 
 class UnreadChatOut(BaseModel):
-    sender: "UserOut"
+    sender: "UserPublicOut"
     count: int
     last_message: str
     last_at: datetime
@@ -205,7 +210,7 @@ class PostOut(BaseModel):
     media_url: Optional[str]
     media_type: Optional[str]
     created_at: datetime
-    author: UserOut
+    author: UserPublicOut
     like_count: int
     liked_by_me: bool
     comment_count: int = 0  # default 0 for backward compatibility
@@ -292,7 +297,7 @@ class CommunityOut(BaseModel):
 
 class CommunityMemberOut(BaseModel):
     id: int
-    user: UserOut
+    user: UserPublicOut
     role: str
     joined_at: datetime
 
@@ -301,7 +306,7 @@ class CommunityMemberOut(BaseModel):
 
 class JoinRequestOut(BaseModel):
     id: int
-    user: UserOut
+    user: UserPublicOut
     status: str
     created_at: datetime
 
@@ -329,7 +334,7 @@ class CommentOut(BaseModel):
     id: int
     content: str
     created_at: datetime
-    author: UserOut
+    author: UserPublicOut
     parent_comment_id: Optional[int] = None
 
     model_config = {"from_attributes": True}

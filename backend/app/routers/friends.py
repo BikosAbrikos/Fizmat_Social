@@ -5,7 +5,7 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import Block, FriendRequest, User
 from app.push_service import send_push
-from app.schemas import FriendRequestOut, FriendStatusOut, UserOut
+from app.schemas import FriendRequestOut, FriendStatusOut, UserOut, UserPublicOut
 from app.security import limiter
 
 router = APIRouter(prefix="/api/friends", tags=["friends"])
@@ -115,7 +115,7 @@ def reject_request(request_id: int, db: Session = Depends(get_db), current_user:
     return req
 
 
-@router.get("", response_model=list[UserOut])
+@router.get("", response_model=list[UserPublicOut])
 def get_friends(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     accepted = db.query(FriendRequest).filter(
         ((FriendRequest.sender_id == current_user.id) | (FriendRequest.receiver_id == current_user.id)),
