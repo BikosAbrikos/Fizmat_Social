@@ -97,6 +97,7 @@ class UserOut(UserPublicOut):
     """Full profile — only returned to the owning user (/api/users/me)."""
     email: str
     age: Optional[int]
+    smart_feed: bool = False
 
 
 class UserUpdate(BaseModel):
@@ -107,6 +108,7 @@ class UserUpdate(BaseModel):
     grade: Optional[str] = None
     bio: Optional[str] = None
     future_major: Optional[str] = None
+    smart_feed: Optional[bool] = None
 
     @field_validator("name")
     @classmethod

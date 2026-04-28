@@ -36,6 +36,8 @@ def update_me(body: UserUpdate, db: Session = Depends(get_db), current_user: Use
         current_user.bio = body.bio
     if body.future_major is not None:
         current_user.future_major = body.future_major
+    if body.smart_feed is not None:
+        current_user.smart_feed = body.smart_feed
     db.commit()
     db.refresh(current_user)
     return current_user

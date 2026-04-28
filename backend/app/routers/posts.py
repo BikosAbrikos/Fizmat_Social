@@ -71,8 +71,9 @@ def _fetch_saved_ids(db: Session, user_id: int, post_ids: list[int]) -> set[int]
 
 @router.get("", response_model=List[PostOut])
 def get_feed(
-    sort: str = "hot",   # "hot" or "new"
+    sort: str = "hot",   # "hot" or "new" — only used when smart_feed is on
     limit: int = 20,
+    skip: int = 0,       # only used when smart_feed is off
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -80,9 +81,7 @@ def get_feed(
     blocking_ids = [b.blocker_id for b in db.query(Block).filter(Block.blocked_id == current_user.id).all()]
     excluded = set(blocked_ids + blocking_ids)
 
-    seen_subq = db.query(SeenPost.post_id).filter(SeenPost.user_id == current_user.id).subquery()
-
-    query = (
+    base_query = (
         db.query(Post)
         .options(
             joinedload(Post.author),
@@ -90,20 +89,27 @@ def get_feed(
             subqueryload(Post.comments),
             joinedload(Post.community),
         )
-        .filter(Post.id.notin_(seen_subq))
     )
     if excluded:
-        query = query.filter(Post.author_id.notin_(excluded))
+        base_query = base_query.filter(Post.author_id.notin_(excluded))
+
+    if not current_user.smart_feed:
+        # Classic chronological feed — no seen tracking
+        posts = base_query.order_by(Post.created_at.desc()).offset(skip).limit(limit).all()
+        saved_ids = _fetch_saved_ids(db, current_user.id, [p.id for p in posts])
+        return [_serialize_post(p, current_user.id, saved_ids) for p in posts]
+
+    # Smart feed — exclude seen posts
+    seen_subq = db.query(SeenPost.post_id).filter(SeenPost.user_id == current_user.id).subquery()
+    query = base_query.filter(Post.id.notin_(seen_subq))
 
     if sort == "new":
         posts = query.order_by(Post.created_at.desc()).limit(limit).all()
     else:
-        # Fetch candidate pool, score and rank in Python
         candidates = query.order_by(Post.created_at.desc()).limit(200).all()
         candidates.sort(key=lambda p: len(p.likes) + len(p.comments) * 2, reverse=True)
         posts = candidates[:limit]
 
-    # Mark returned posts as seen (idempotent)
     if posts:
         db.execute(
             text("INSERT INTO seen_posts (user_id, post_id) VALUES (:user_id, :post_id) ON CONFLICT DO NOTHING"),

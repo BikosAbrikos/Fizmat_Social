@@ -19,6 +19,7 @@ class User(Base):
     grade = Column(String(10), nullable=True)
     bio = Column(String(150), nullable=True)
     future_major = Column(String(100), nullable=True)
+    smart_feed = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     posts = relationship("Post", back_populates="author", cascade="all, delete-orphan")

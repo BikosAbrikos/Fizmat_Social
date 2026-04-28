@@ -39,6 +39,7 @@ export default function Profile() {
   const [futureMajor, setFutureMajor] = useState(user?.future_major || "");
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
+  const [smartFeed, setSmartFeed] = useState(user?.smart_feed ?? false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -221,6 +222,61 @@ export default function Profile() {
             {saving ? "Saving…" : "Save Changes"}
           </button>
         </form>
+      </div>
+
+      {/* Feed */}
+      <div style={{
+        background: theme.card,
+        border: `1px solid ${theme.border}`,
+        borderRadius: 4,
+        padding: "20px 24px",
+        marginBottom: 12,
+      }}>
+        <SectionHeading theme={theme}>Feed</SectionHeading>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ flex: 1, paddingRight: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: theme.text }}>Smart Feed</div>
+            <div style={{ fontSize: 12, color: theme.textSub, marginTop: 2, lineHeight: 1.5 }}>
+              Rank posts by popularity and hide ones you've already seen. Posts won't repeat until you reset.
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              const next = !smartFeed;
+              setSmartFeed(next);
+              try {
+                const { data } = await api.put("/api/users/me", { smart_feed: next });
+                setUser(data);
+              } catch {
+                setSmartFeed(!next); // revert on failure
+              }
+            }}
+            style={{
+              position: "relative",
+              width: 48,
+              height: 26,
+              background: smartFeed ? theme.accent : theme.border,
+              borderRadius: 13,
+              border: "none",
+              cursor: "pointer",
+              transition: "background 0.2s",
+              padding: 0,
+              flexShrink: 0,
+            }}
+          >
+            <span style={{
+              position: "absolute",
+              top: 3,
+              left: smartFeed ? 25 : 3,
+              width: 20,
+              height: 20,
+              borderRadius: "50%",
+              background: "#fff",
+              transition: "left 0.2s",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+            }} />
+          </button>
+        </div>
       </div>
 
       {/* Appearance */}

@@ -157,6 +157,9 @@ async def lifespan(app: FastAPI):
             )
         """))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_saved_posts_user ON saved_posts (user_id)"))
+        conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS smart_feed BOOLEAN NOT NULL DEFAULT FALSE"
+        ))
         conn.commit()
     yield
 

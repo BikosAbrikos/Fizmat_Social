@@ -2,10 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
 import PostCard from "../components/PostCard";
+import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { useIsMobile } from "../hooks/useIsMobile";
 
 export default function Feed() {
+  const { user } = useAuth();
+  const smartFeed = user?.smart_feed ?? false;
+
   const [posts, setPosts] = useState([]);
   const [sort, setSort] = useState("hot");
   const [loading, setLoading] = useState(true);
@@ -18,16 +22,19 @@ export default function Feed() {
   const isMobile = useIsMobile();
   const sentinelRef = useRef(null);
 
-  const fetchPosts = useCallback(async (currentSort) => {
+  const fetchPosts = useCallback(async (currentSort, currentSkip = 0) => {
     try {
-      const { data } = await api.get(`/api/posts?sort=${currentSort}&limit=20`);
+      const url = smartFeed
+        ? `/api/posts?sort=${currentSort}&limit=20`
+        : `/api/posts?skip=${currentSkip}&limit=20`;
+      const { data } = await api.get(url);
       return data;
     } catch {
       return null;
     }
-  }, []);
+  }, [smartFeed]);
 
-  // Initial load / sort change
+  // Initial load / sort change / smartFeed toggle
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -35,41 +42,44 @@ export default function Feed() {
     setPosts([]);
     setError(false);
 
-    fetchPosts(sort).then(data => {
+    fetchPosts(sort, 0).then(data => {
       if (cancelled) return;
       if (data === null) {
         setError(true);
       } else {
         setPosts(data);
-        if (data.length === 0) setAllSeen(true);
+        if (smartFeed && data.length === 0) setAllSeen(true);
       }
       setLoading(false);
     });
 
     return () => { cancelled = true; };
-  }, [sort, fetchPosts]);
+  }, [sort, smartFeed, fetchPosts]);
 
-  // Infinite scroll — load more unseen posts when sentinel enters viewport
+  // Infinite scroll sentinel
   useEffect(() => {
-    if (allSeen || loading) return;
+    if (loading) return;
+    if (smartFeed && allSeen) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
 
     const observer = new IntersectionObserver(async (entries) => {
       if (!entries[0].isIntersecting || loadingMore) return;
       setLoadingMore(true);
-      const data = await fetchPosts(sort);
+      const nextSkip = posts.length;
+      const data = await fetchPosts(sort, nextSkip);
       if (data && data.length > 0) {
         setPosts(prev => [...prev, ...data]);
+        if (smartFeed && data.length < 20) setAllSeen(true);
       } else {
-        setAllSeen(true);
+        if (smartFeed) setAllSeen(true);
       }
       setLoadingMore(false);
     }, { threshold: 0.1 });
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [allSeen, loading, loadingMore, sort, fetchPosts]);
+  }, [allSeen, loading, loadingMore, sort, smartFeed, fetchPosts, posts.length]);
 
   useEffect(() => {
     api.get("/api/communities/me/joined")
@@ -157,19 +167,21 @@ export default function Feed() {
         </button>
       </div>
 
-      {/* Sort tabs */}
-      <div style={{
-        display: "flex",
-        gap: 8,
-        padding: "8px 10px",
-        background: theme.card,
-        border: `1px solid ${theme.border}`,
-        borderRadius: 4,
-        marginBottom: 10,
-      }}>
-        {sortTab("hot", "Hot", "🔥")}
-        {sortTab("new", "New", "✨")}
-      </div>
+      {/* Sort tabs — only visible in smart feed mode */}
+      {smartFeed && (
+        <div style={{
+          display: "flex",
+          gap: 8,
+          padding: "8px 10px",
+          background: theme.card,
+          border: `1px solid ${theme.border}`,
+          borderRadius: 4,
+          marginBottom: 10,
+        }}>
+          {sortTab("hot", "Hot", "🔥")}
+          {sortTab("new", "New", "✨")}
+        </div>
+      )}
 
       {loading && (
         <div style={{ textAlign: "center", color: theme.textSub, padding: "40px 0", fontSize: 14 }}>
@@ -187,7 +199,7 @@ export default function Feed() {
       ))}
 
       {/* Infinite scroll sentinel */}
-      {!loading && !allSeen && <div ref={sentinelRef} style={{ height: 40 }} />}
+      {!loading && !(smartFeed && allSeen) && <div ref={sentinelRef} style={{ height: 40 }} />}
 
       {loadingMore && (
         <div style={{ textAlign: "center", color: theme.textSub, padding: "20px 0", fontSize: 13 }}>
@@ -195,8 +207,8 @@ export default function Feed() {
         </div>
       )}
 
-      {/* All caught up state */}
-      {allSeen && !loading && (
+      {/* All caught up state — smart feed only */}
+      {smartFeed && allSeen && !loading && (
         <div style={{
           textAlign: "center",
           padding: "32px 16px",
