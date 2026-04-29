@@ -44,7 +44,11 @@ export default function Register() {
       setStep(2);
     } catch (err) {
       const detail = err.response?.data?.detail;
-      setSendError(Array.isArray(detail) ? detail.map((d) => d.msg).join(", ") : detail || "Failed to send code");
+      setSendError(
+        Array.isArray(detail)
+          ? detail.map((d) => d.msg).join(", ")
+          : detail || (err.code === "ECONNABORTED" ? "Request timed out. Please try again." : "Failed to send code. Please try again.")
+      );
     } finally {
       setSending(false);
     }
