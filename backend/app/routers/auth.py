@@ -47,16 +47,15 @@ def _send_otp_email(to_email: str, code: str) -> None:
     msg["From"] = settings.SMTP_FROM
     msg["To"] = to_email
 
-    if settings.SMTP_PORT == 465:
-        with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as s:
-            s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
-    else:
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as s:
-            s.ehlo()
-            s.starttls()
-            s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
+    # Resolve to IPv4 explicitly — avoids ENETUNREACH on hosts without IPv6 routing
+    import socket
+    ipv4 = socket.getaddrinfo(settings.SMTP_HOST, settings.SMTP_PORT, socket.AF_INET)[0][4][0]
+
+    with smtplib.SMTP(ipv4, settings.SMTP_PORT, timeout=10) as s:
+        s.ehlo(settings.SMTP_HOST)
+        s.starttls()
+        s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+        s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
 
 
 @router.post("/send-verification", status_code=status.HTTP_200_OK)
