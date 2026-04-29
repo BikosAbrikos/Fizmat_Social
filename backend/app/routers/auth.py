@@ -3,6 +3,7 @@ import smtplib
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 
+import resend
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
@@ -19,10 +20,25 @@ MAX_OTP_ATTEMPTS = 5
 
 
 def _send_otp_email(to_email: str, code: str) -> None:
-    if not settings.SMTP_HOST:
+    # Dev fallback — no email service configured
+    if not settings.RESEND_API_KEY and not settings.SMTP_HOST:
         print(f"[DEV] OTP for {to_email}: {code}", flush=True)
         return
 
+    if settings.RESEND_API_KEY:
+        resend.api_key = settings.RESEND_API_KEY
+        resend.Emails.send({
+            "from": settings.RESEND_FROM,
+            "to": [to_email],
+            "subject": "FizMat Social — Email Verification",
+            "text": (
+                f"Your FizMat Social verification code is: {code}\n\n"
+                f"This code expires in 10 minutes. Do not share it with anyone."
+            ),
+        })
+        return
+
+    # SMTP fallback (local dev with real SMTP)
     msg = MIMEText(
         f"Your FizMat Social verification code is: {code}\n\n"
         f"This code expires in 10 minutes. Do not share it with anyone."

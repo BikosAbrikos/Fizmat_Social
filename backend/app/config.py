@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    RESEND_API_KEY: str = ""
+    RESEND_FROM: str = "FizMat Social <noreply@fizmat.kz>"
+
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
