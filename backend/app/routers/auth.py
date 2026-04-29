@@ -31,11 +31,16 @@ def _send_otp_email(to_email: str, code: str) -> None:
     msg["From"] = settings.SMTP_FROM
     msg["To"] = to_email
 
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as s:
-        s.ehlo()
-        s.starttls()
-        s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
+    if settings.SMTP_PORT == 465:
+        with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as s:
+            s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
+    else:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as s:
+            s.ehlo()
+            s.starttls()
+            s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
 
 
 @router.post("/send-verification", status_code=status.HTTP_200_OK)
