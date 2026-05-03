@@ -1,3 +1,4 @@
+import logging
 import secrets
 import smtplib
 from datetime import datetime, timedelta
@@ -5,6 +6,8 @@ from email.mime.text import MIMEText
 
 import resend
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+
+logger = logging.getLogger(__name__)
 from sqlalchemy.orm import Session
 
 from app.auth import create_access_token, hash_password, verify_password
@@ -84,6 +87,7 @@ def send_verification(request: Request, body: SendVerificationRequest, db: Sessi
     try:
         _send_otp_email(body.email, code)
     except Exception as exc:
+        logger.exception("SMTP error sending to %s: %s", body.email, exc)
         raise HTTPException(status_code=500, detail=f"Failed to send email: {exc}")
 
     return {"message": "Verification code sent"}
