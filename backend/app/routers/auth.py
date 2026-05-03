@@ -23,49 +23,61 @@ MAX_OTP_ATTEMPTS = 5
 
 
 def _send_otp_email(to_email: str, code: str) -> None:
-    # Dev fallback — no email service configured
-    if not settings.RESEND_API_KEY and not settings.SMTP_HOST:
-        print(f"[DEV] OTP for {to_email}: {code}", flush=True)
+    body = (
+        f"Your FizMat Social verification code is: {code}\n\n"
+        f"This code expires in 10 minutes. Do not share it with anyone."
+    )
+
+    # 1. Brevo (works on Railway free plan — HTTPS API, no SMTP ports needed)
+    if settings.BREVO_API_KEY:
+        import httpx
+        resp = httpx.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={"api-key": settings.BREVO_API_KEY, "Content-Type": "application/json"},
+            json={
+                "sender": {"name": settings.BREVO_FROM_NAME, "email": settings.BREVO_FROM_EMAIL},
+                "to": [{"email": to_email}],
+                "subject": "FizMat Social — Email Verification",
+                "textContent": body,
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
         return
 
+    # 2. Resend
     if settings.RESEND_API_KEY:
         resend.api_key = settings.RESEND_API_KEY
         resend.Emails.send({
             "from": settings.RESEND_FROM,
             "to": [to_email],
             "subject": "FizMat Social — Email Verification",
-            "text": (
-                f"Your FizMat Social verification code is: {code}\n\n"
-                f"This code expires in 10 minutes. Do not share it with anyone."
-            ),
+            "text": body,
         })
         return
 
-    # SMTP fallback
-    import socket
-    msg = MIMEText(
-        f"Your FizMat Social verification code is: {code}\n\n"
-        f"This code expires in 10 minutes. Do not share it with anyone."
-    )
-    msg["Subject"] = "FizMat Social — Email Verification"
-    msg["From"] = settings.SMTP_FROM
-    msg["To"] = to_email
+    # 3. SMTP (only works on Railway Pro plan or self-hosted)
+    if settings.SMTP_HOST:
+        import socket
+        msg = MIMEText(body)
+        msg["Subject"] = "FizMat Social — Email Verification"
+        msg["From"] = settings.SMTP_FROM
+        msg["To"] = to_email
+        ipv4 = socket.getaddrinfo(settings.SMTP_HOST, settings.SMTP_PORT, socket.AF_INET)[0][4][0]
+        if settings.SMTP_SSL:
+            with smtplib.SMTP_SSL(ipv4, settings.SMTP_PORT, timeout=10) as s:
+                s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
+        else:
+            with smtplib.SMTP(ipv4, settings.SMTP_PORT, timeout=10) as s:
+                s.ehlo(settings.SMTP_HOST)
+                s.starttls()
+                s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
+        return
 
-    # Resolve to IPv4 explicitly — avoids ENETUNREACH on hosts without IPv6 routing
-    ipv4 = socket.getaddrinfo(settings.SMTP_HOST, settings.SMTP_PORT, socket.AF_INET)[0][4][0]
-
-    if settings.SMTP_SSL:
-        # Port 465 — implicit SSL
-        with smtplib.SMTP_SSL(ipv4, settings.SMTP_PORT, timeout=10) as s:
-            s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
-    else:
-        # Port 587 — STARTTLS
-        with smtplib.SMTP(ipv4, settings.SMTP_PORT, timeout=10) as s:
-            s.ehlo(settings.SMTP_HOST)
-            s.starttls()
-            s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
+    # 4. Dev fallback
+    print(f"[DEV] OTP for {to_email}: {code}", flush=True)
 
 
 @router.post("/send-verification", status_code=status.HTTP_200_OK)

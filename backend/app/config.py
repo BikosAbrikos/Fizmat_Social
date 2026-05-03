@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     RESEND_FROM: str = "FizMat Social <noreply@fizmat.kz>"
 
+    BREVO_API_KEY: str = ""
+    BREVO_FROM_EMAIL: str = ""
+    BREVO_FROM_NAME: str = "FizMat Social"
+
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_SSL: bool = False   # True for port 465 (SSL), False for port 587 (STARTTLS)
