@@ -38,7 +38,8 @@ def _send_otp_email(to_email: str, code: str) -> None:
         })
         return
 
-    # SMTP fallback (local dev with real SMTP)
+    # SMTP fallback
+    import socket
     msg = MIMEText(
         f"Your FizMat Social verification code is: {code}\n\n"
         f"This code expires in 10 minutes. Do not share it with anyone."
@@ -48,14 +49,20 @@ def _send_otp_email(to_email: str, code: str) -> None:
     msg["To"] = to_email
 
     # Resolve to IPv4 explicitly — avoids ENETUNREACH on hosts without IPv6 routing
-    import socket
     ipv4 = socket.getaddrinfo(settings.SMTP_HOST, settings.SMTP_PORT, socket.AF_INET)[0][4][0]
 
-    with smtplib.SMTP(ipv4, settings.SMTP_PORT, timeout=10) as s:
-        s.ehlo(settings.SMTP_HOST)
-        s.starttls()
-        s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
+    if settings.SMTP_SSL:
+        # Port 465 — implicit SSL
+        with smtplib.SMTP_SSL(ipv4, settings.SMTP_PORT, timeout=10) as s:
+            s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
+    else:
+        # Port 587 — STARTTLS
+        with smtplib.SMTP(ipv4, settings.SMTP_PORT, timeout=10) as s:
+            s.ehlo(settings.SMTP_HOST)
+            s.starttls()
+            s.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            s.sendmail(settings.SMTP_FROM, [to_email], msg.as_string())
 
 
 @router.post("/send-verification", status_code=status.HTTP_200_OK)

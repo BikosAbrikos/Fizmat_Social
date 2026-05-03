@@ -1,8 +1,10 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
@@ -230,6 +232,24 @@ app.include_router(push.router)
 app.include_router(communities.router)
 
 
-@app.get("/")
-def root():
+@app.get("/health")
+def health():
     return {"status": "ok"}
+
+
+# ── Serve React SPA ───────────────────────────────────────────────────────────
+_FRONTEND = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend_build")
+
+if os.path.isdir(_FRONTEND):
+    app.mount("/static", StaticFiles(directory=os.path.join(_FRONTEND, "static")), name="react-static")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        requested = os.path.join(_FRONTEND, full_path)
+        if os.path.isfile(requested):
+            return FileResponse(requested)
+        return FileResponse(os.path.join(_FRONTEND, "index.html"))
+else:
+    @app.get("/")
+    def root():
+        return {"status": "ok"}
