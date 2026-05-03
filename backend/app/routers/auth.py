@@ -42,6 +42,8 @@ def _send_otp_email(to_email: str, code: str) -> None:
             },
             timeout=15,
         )
+        if not resp.is_success:
+            logger.error("Brevo error %s: %s", resp.status_code, resp.text)
         resp.raise_for_status()
         return
 
